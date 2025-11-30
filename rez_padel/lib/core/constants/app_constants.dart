@@ -6,6 +6,7 @@ class AppConstants {
   
   // Supabase
   static const String supabaseUrl = 'https://rxicnsdrmbeajlxzhxjl.supabase.co';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4aWNuc2RybWJlYWpseHpoeGpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0NTI3OTEsImV4cCI6MjA4MDAyODc5MX0.qZrj-f-VKkErogQBl9thZ7ky_5-LYQiR3LCC4K1J2Bg';
   
   // User Roles
   static const String rolePlayer = 'player';

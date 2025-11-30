@@ -1,1 +1,1 @@
-Ideeee rez padelicaaaa
+

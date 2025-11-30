@@ -1,0 +1,66 @@
+# Rez Padel - Booking Management SaaS for Padel Space
+
+## Tech Stack
+- Flutter (UI framework)
+- Dart (programming language)
+- Supabase (PostgreSQL database, authentication, storage, realtime)
+- Supabase Edge Functions (serverless backend functions)
+
+## Project Context
+Building a booking management app for Padel Space, a padel center in Serbia. 
+
+## Code Style & Conventions
+- Use Flutter best practices and Material Design 3
+- Follow Dart naming conventions (camelCase for variables, PascalCase for classes)
+- Organize code with feature-first architecture
+- Use Riverpod for state management (flutter_riverpod)
+- Implement proper error handling with try-catch blocks
+- Use Supabase client for all backend operations
+
+## Supabase Integration
+- Use environment variables for Supabase URL and anon key
+- Implement Row Level Security (RLS) policies
+- Use Supabase Auth for user authentication
+- Leverage Realtime subscriptions for live court availability
+- Store images in Supabase Storage
+
+## UI/UX Guidelines
+- Follow PadelSpace branding (cosmic/space theme)
+- Primary colors: Hot Pink (#FF0099), Deep Navy (#1a2332)
+- Typography: Montserrat via Google Fonts (ExtraBold for headings, Regular for body)
+- High contrast design (pink on navy, white on navy)
+- Energetic, playful aesthetic targeting millennials/Gen Z
+- Use rounded corners (8-12px) for buttons and cards
+- Implement responsive design for various screen sizes
+
+## Design Patterns
+- Use bold typography hierarchy
+- Generous white space
+- Playful decorative elements (floating padel balls in lime green)
+- Action shots with dark navy overlays for text legibility
+- CTA buttons: Pink background, white text, rounded corners
+
+## Serbian Market Specifics
+- All user-facing text in Serbian Latin (no localization system needed)
+- Handle RSD (Serbian Dinar) currency formatting
+- Consider local time zones (CET/CEST - Europe/Belgrade)
+- Energetic, friendly tone in communications
+
+## User Roles
+- **Players** - Book courts, view availability, manage bookings
+- **Staff** - Manage bookings for their center, check-in players
+- **Admin** - Full system access (CEO of PadelSpace and development team)
+
+## Best Practices
+- Write clean, maintainable code with comments
+- Create reusable widgets and components
+- Implement loading states and error handling
+- Use async/await for asynchronous operations
+- Write meaningful commit messages
+- Test critical user flows
+
+## Things to Avoid
+- Don't use muted or pastel colors (stick to brand palette)
+- Avoid serif fonts
+- Don't create low contrast combinations
+- Avoid rigid, corporate layouts

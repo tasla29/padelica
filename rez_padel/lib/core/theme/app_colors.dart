@@ -9,6 +9,7 @@ class AppColors {
   
   // Accent Colors
   static const Color limeGreen = Color(0xFF00FF66); // For decorative elements
+  static const Color brightBlue = Color(0xFF3366FF); // For badges/accents
   
   // Neutral Colors
   static const Color white = Color(0xFFFFFFFF);

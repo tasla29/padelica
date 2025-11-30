@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl_phone_number_input/intl_phone_number_input.dart';
+import '../../../core/constants/app_constants.dart';
 import 'auth_controller.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -15,17 +17,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  final _phoneController = TextEditingController();
+  
+  // Phone input state
+  String _fullPhoneNumber = '';
+  PhoneNumber _initialPhoneNumber = PhoneNumber(isoCode: 'RS'); // Default to Serbia
+  
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -45,7 +54,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         password: _passwordController.text,
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
-        phone: _phoneController.text.trim(),
+        phone: _fullPhoneNumber,
       );
     }
   }
@@ -54,6 +63,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     setState(() {
       _isLogin = !_isLogin;
       _formKey.currentState?.reset();
+      // Reset visibility on toggle
+      _isPasswordVisible = false;
+      _isConfirmPasswordVisible = false;
     });
   }
 
@@ -67,15 +79,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
-      } else if (state.value != null) {
-        // Navigation logic would go here (e.g. GoRouter)
-        // For now, we just show a success message if needed, 
-        // or the app wrapper handles the redirect based on auth state.
       }
     });
 
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState.isLoading;
+    final inputFillColor = Theme.of(context).inputDecorationTheme.fillColor ?? Colors.white;
+    final inputBorderColor = Theme.of(context).inputDecorationTheme.border?.borderSide.color ?? Colors.grey;
 
     return Scaffold(
       body: Center(
@@ -86,7 +96,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Rez Padel',
+                AppConstants.appName,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.displayMedium?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
@@ -103,7 +113,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          _isLogin ? 'Welcome Back' : 'Create Account',
+                          _isLogin ? 'Prijavi se' : 'Registruj se',
                           style: Theme.of(context).textTheme.headlineSmall,
                           textAlign: TextAlign.center,
                         ),
@@ -116,11 +126,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                 child: TextFormField(
                                   controller: _firstNameController,
                                   decoration: const InputDecoration(
-                                    labelText: 'First Name',
+                                    labelText: 'Ime',
                                     prefixIcon: Icon(Icons.person_outline),
                                   ),
                                   validator: (value) =>
-                                      value?.isEmpty ?? true ? 'Required' : null,
+                                      value?.isEmpty ?? true ? 'Obavezno polje' : null,
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -128,26 +138,57 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                 child: TextFormField(
                                   controller: _lastNameController,
                                   decoration: const InputDecoration(
-                                    labelText: 'Last Name',
+                                    labelText: 'Prezime',
                                     prefixIcon: Icon(Icons.person_outline),
                                   ),
                                   validator: (value) =>
-                                      value?.isEmpty ?? true ? 'Required' : null,
+                                      value?.isEmpty ?? true ? 'Obavezno polje' : null,
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _phoneController,
-                            decoration: const InputDecoration(
-                              labelText: 'Phone',
-                              prefixIcon: Icon(Icons.phone_outlined),
-                              hintText: '+381 6X ...',
+                          
+                          // Integrated Phone Input
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: inputFillColor,
+                              border: Border.all(color: inputBorderColor),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            keyboardType: TextInputType.phone,
-                            validator: (value) =>
-                                value?.isEmpty ?? true ? 'Required' : null,
+                            child: InternationalPhoneNumberInput(
+                              onInputChanged: (PhoneNumber number) {
+                                _fullPhoneNumber = number.phoneNumber ?? '';
+                              },
+                              selectorConfig: const SelectorConfig(
+                                selectorType: PhoneInputSelectorType.BOTTOM_SHEET,
+                                showFlags: true,
+                                useEmoji: true,
+                                leadingPadding: 0,
+                                trailingSpace: false,
+                                setSelectorButtonAsPrefixIcon: true,
+                              ),
+                              ignoreBlank: false,
+                              autoValidateMode: AutovalidateMode.disabled,
+                              selectorTextStyle: const TextStyle(color: Colors.white),
+                              textStyle: const TextStyle(color: Colors.white),
+                              initialValue: _initialPhoneNumber,
+                              formatInput: true,
+                              keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
+                              inputBorder: InputBorder.none,
+                              inputDecoration: const InputDecoration(
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                errorBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
+                                hintText: 'Broj telefona',
+                                hintStyle: TextStyle(color: Colors.grey),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              errorMessage: 'Neispravan format',
+                            ),
                           ),
                           const SizedBox(height: 16),
                         ],
@@ -160,20 +201,64 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           ),
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) =>
-                              value?.isEmpty ?? true ? 'Required' : null,
+                              value?.isEmpty ?? true ? 'Obavezno polje' : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _passwordController,
-                          decoration: const InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: Icon(Icons.lock_outline),
+                          decoration: InputDecoration(
+                            labelText: 'Lozinka',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordVisible 
+                                  ? Icons.visibility // Uncrossed when visible
+                                  : Icons.visibility_off // Crossed when hidden
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _isPasswordVisible = !_isPasswordVisible;
+                                });
+                              },
+                            ),
                           ),
-                          obscureText: true,
+                          obscureText: !_isPasswordVisible,
                           validator: (value) => (value?.length ?? 0) < 6
-                              ? 'Min 6 characters'
+                              ? 'Min 6 karaktera'
                               : null,
                         ),
+                        
+                        if (!_isLogin) ...[
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _confirmPasswordController,
+                            decoration: InputDecoration(
+                              labelText: 'Potvrdi lozinku',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _isConfirmPasswordVisible 
+                                    ? Icons.visibility // Uncrossed when visible
+                                    : Icons.visibility_off // Crossed when hidden
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                                  });
+                                },
+                              ),
+                            ),
+                            obscureText: !_isConfirmPasswordVisible,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) return 'Obavezno polje';
+                              if (value != _passwordController.text) {
+                                return 'Lozinke se ne poklapaju';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
+                        
                         const SizedBox(height: 24),
                         
                         ElevatedButton(
@@ -187,15 +272,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : Text(_isLogin ? 'Sign In' : 'Sign Up'),
+                              : Text(_isLogin ? 'Prijavi se' : 'Registruj se'),
                         ),
                         const SizedBox(height: 16),
                         TextButton(
                           onPressed: isLoading ? null : _toggleAuthMode,
                           child: Text(
                             _isLogin
-                                ? 'Need an account? Sign Up'
-                                : 'Have an account? Sign In',
+                                ? 'Nemaš nalog? Registruj se'
+                                : 'Imaš nalog? Prijavi se',
                           ),
                         ),
                       ],
@@ -210,4 +295,3 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 }
-

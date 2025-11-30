@@ -1,7 +1,7 @@
 /// App-wide constants for Rez Padel
 class AppConstants {
   // App Info
-  static const String appName = 'Rez Padel';
+  static const String appName = 'Padel Space';
   static const String appVersion = '1.0.0';
   
   // Supabase
@@ -22,4 +22,3 @@ class AppConstants {
   
   AppConstants._(); // Private constructor
 }
-

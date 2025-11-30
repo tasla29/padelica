@@ -43,6 +43,7 @@ dependencies:
   
   # Google Fonts for Montserrat typography
   google_fonts: ^6.2.1
+  intl_phone_number_input: ^0.7.5
 
 dev_dependencies:
   flutter_test:

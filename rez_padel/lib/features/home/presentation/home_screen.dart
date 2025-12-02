@@ -22,9 +22,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final screens = [
       _HomeContent(userFirstName: user?.firstName ?? 'Igrač'),
-      const SafeArea(
-        child: BookingsScreen(),
-      ), // Using existing bookings screen as placeholder
+      const BookingsScreen(), // Using existing bookings screen as placeholder
       const SafeArea(child: _PlaceholderScreen(title: 'Profil')),
     ];
 

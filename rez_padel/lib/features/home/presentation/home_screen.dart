@@ -135,7 +135,21 @@ class _HomeContent extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context, ref),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+                // Upcoming Activities Section
+                const _UpcomingActivitiesSection(),
+                const SizedBox(height: 28),
+                // Section Title for Cards
+                Text(
+                  'Idemo na padel?',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 // Action Cards Section
                 const _ActionCardsSection(),
               ],
@@ -159,6 +173,7 @@ class _HomeContent extends ConsumerWidget {
                 fontSize: 24,
                 fontWeight: FontWeight.w400,
                 color: Colors.white,
+                height: 1.0,
               ),
             ),
             Text(
@@ -167,9 +182,71 @@ class _HomeContent extends ConsumerWidget {
                 fontSize: 32,
                 fontWeight: FontWeight.w800,
                 color: AppColors.hotPink,
+                height: 1.1,
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Upcoming Activities Section with empty state
+class _UpcomingActivitiesSection extends StatelessWidget {
+  const _UpcomingActivitiesSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Title
+        Text(
+          'Tvoje aktivnosti',
+          style: GoogleFonts.montserrat(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppColors.white,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Empty State Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+          decoration: BoxDecoration(
+            color: AppColors.cardNavyLight,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.deepNavy,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.calendar_today_rounded,
+                  color: Colors.white.withOpacity(0.4),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Nemaš zakazane termine',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white60,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );

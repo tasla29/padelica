@@ -114,12 +114,10 @@ class AppTheme {
       primary: AppColors.hotPink,
       secondary: AppColors.limeGreen,
       surface: AppColors.surfaceDark,
-      background: AppColors.backgroundDark,
       error: AppColors.error,
       onPrimary: AppColors.textOnPink,
       onSecondary: AppColors.deepNavy,
       onSurface: AppColors.textPrimary,
-      onBackground: AppColors.textPrimary,
       onError: AppColors.white,
     ),
     

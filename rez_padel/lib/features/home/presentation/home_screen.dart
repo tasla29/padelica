@@ -4,8 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../bookings/bookings_screen.dart';
-import '../../bookings/domain/court_model.dart';
-import 'home_controller.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -24,12 +22,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final screens = [
       _HomeContent(userFirstName: user?.firstName ?? 'Igrač'),
-      const SafeArea(child: BookingsScreen()), // Using existing bookings screen as placeholder
+      const SafeArea(
+        child: BookingsScreen(),
+      ), // Using existing bookings screen as placeholder
       const SafeArea(child: _PlaceholderScreen(title: 'Profil')),
     ];
 
     return Scaffold(
-      backgroundColor: _currentIndex == 0 ? AppColors.hotPink : AppColors.deepNavy,
+      backgroundColor: AppColors.deepNavy,
       appBar: _currentIndex == 0 ? _buildAppBar() : null,
       body: screens[_currentIndex],
       bottomNavigationBar: Container(
@@ -83,27 +83,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Booking flow - uskoro!'),
-                    backgroundColor: AppColors.hotPink,
-                  ),
-                );
-              },
-              backgroundColor: AppColors.hotPink,
-              label: Text(
-                'NOVA REZERVACIJA',
-                style: GoogleFonts.montserrat(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              icon: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
     );
   }
 
@@ -126,11 +105,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onPressed: () {
             setState(() => _currentIndex = 2); // Navigate to profile screen
           },
-          icon: const Icon(
-            Icons.menu,
-            color: Colors.white,
-            size: 28,
-          ),
+          icon: const Icon(Icons.menu, color: Colors.white, size: 28),
         ),
       ],
     );
@@ -144,103 +119,28 @@ class _HomeContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final courtsAsync = ref.watch(activeCourtsProvider);
-
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.deepNavy,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
+      color: AppColors.hotPink, // Pink background for the curve effect
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.deepNavy,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-      ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(30),
-        ),
-        child: RefreshIndicator(
-          onRefresh: () => ref.refresh(activeCourtsProvider.future),
-          color: AppColors.hotPink,
-          backgroundColor: AppColors.deepNavy,
-          child: CustomScrollView(
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-              sliver: SliverList(
-              delegate: SliverChildListDelegate([
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 _buildHeader(context, ref),
                 const SizedBox(height: 32),
-                // Optional Stats Card
-                /* 
-                _buildStatsCard(),
-                const SizedBox(height: 32),
-                */
-                Text(
-                  'DOSTUPNI TERENI',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.hotPink,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ]),
+                // Action Cards Section
+                const _ActionCardsSection(),
+              ],
             ),
           ),
-          courtsAsync.when(
-            data: (courts) {
-              if (courts.isEmpty) {
-                return SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Text(
-                      'Trenutno nema dostupnih terena.',
-                      style: GoogleFonts.montserrat(
-                        color: Colors.white70,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                );
-              }
-              return SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
-                sliver: SliverGrid(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _CourtCard(
-                      court: courts[index],
-                      index: index,
-                    ),
-                    childCount: courts.length,
-                  ),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 1, // Stack vertically for better visibility on mobile
-                    mainAxisSpacing: 20,
-                    childAspectRatio: 1.3, // Adjusted to prevent overflow
-                  ),
-                ),
-              );
-            },
-            loading: () => const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.hotPink,
-                ),
-              ),
-            ),
-            error: (error, stack) => SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Text(
-                  'Došlo je do greške pri učitavanju terena.',
-                  style: GoogleFonts.montserrat(color: AppColors.error),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
         ),
       ),
     );
@@ -254,7 +154,7 @@ class _HomeContent extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Zdravo,',
+              'Ćao',
               style: GoogleFonts.montserrat(
                 fontSize: 24,
                 fontWeight: FontWeight.w400,
@@ -271,130 +171,235 @@ class _HomeContent extends ConsumerWidget {
             ),
           ],
         ),
-        IconButton(
-          onPressed: () => ref.read(authControllerProvider.notifier).signOut(),
-          icon: const Icon(
-            Icons.logout_rounded,
-            color: Colors.white70,
-            size: 28,
-          ),
+      ],
+    );
+  }
+}
+
+/// Action Cards Section - Hero + Two Grid Cards
+class _ActionCardsSection extends StatelessWidget {
+  const _ActionCardsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Hero Card - Rezerviši termin
+        const _HeroCard(),
+        const SizedBox(height: 16),
+        // Bottom Grid - Turniri & Treninzi
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                title: 'Turniri',
+                subtitle: 'Takmičenja i eventi',
+                imagePath: 'assets/images/illustration_tournaments.png',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Turniri - uskoro!'),
+                      backgroundColor: AppColors.hotPink,
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _ActionCard(
+                title: 'Treninzi',
+                subtitle: 'Unapredi svoju igru',
+                imagePath: 'assets/images/illustration_training.png',
+                imageHeight: 68,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Treninzi - uskoro!'),
+                      backgroundColor: AppColors.hotPink,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-class _CourtCard extends StatelessWidget {
-  final CourtModel court;
-  final int index;
-
-  const _CourtCard({required this.court, required this.index});
-
-  static const List<String> _stockImages = [
-    'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=1000&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1626224583764-8478abf726a1?q=80&w=1000&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1000&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1595435742656-5272d0b3fa82?q=80&w=1000&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1622163642998-1ea36b1dde3b?q=80&w=1000&auto=format&fit=crop',
-  ];
-
-  String _getImageUrl() {
-    if (court.imageUrl != null && court.imageUrl!.isNotEmpty) {
-      return court.imageUrl!;
-    }
-    // Use deterministic random image based on index or ID
-    return _stockImages[index % _stockImages.length];
-  }
+/// Hero Card with pink gradient accent
+class _HeroCard extends StatelessWidget {
+  const _HeroCard();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking flow - uskoro!'),
+            backgroundColor: AppColors.hotPink,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: Image.network(
-                _getImageUrl(),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildPlaceholder(),
-              ),
+        );
+      },
+      child: Container(
+        height: 160,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0), // Reduced padding to prevent overflow
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    court.name,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.deepNavy,
-                    ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            children: [
+              // Base navy color
+              Container(
+                decoration: const BoxDecoration(color: AppColors.cardNavy),
+              ),
+              // Subtle pink gradient overlay
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.hotPink.withOpacity(0.15),
+                      Colors.transparent,
+                    ],
                   ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Booking flow - uskoro!'),
-                            backgroundColor: AppColors.hotPink,
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.hotPink,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        'REZERVIŠI',
-                        style: GoogleFonts.montserrat(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
+                ),
+              ),
+              // Illustration on the right (slightly out of frame)
+              Positioned(
+                right: -45,
+                bottom: -30,
+                child: Image.asset(
+                  'assets/images/illustration_booking.png',
+                  height: 160, // Test: half size (was ~160)
+                  fit: BoxFit.contain,
+                ),
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Rezerviši termin',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Izaberi termin i vreme',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildPlaceholder() {
-    return Container(
-      color: Colors.grey[200],
-      child: const Icon(
-        Icons.sports_tennis,
-        size: 48,
-        color: Colors.grey,
+/// Action Card for secondary actions (Turniri, Treninzi)
+class _ActionCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String imagePath;
+  final VoidCallback onTap;
+  final double imageHeight;
+
+  const _ActionCard({
+    required this.title,
+    required this.subtitle,
+    required this.imagePath,
+    required this.onTap,
+    this.imageHeight = 80,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 120,
+        decoration: BoxDecoration(
+          color: AppColors.cardNavyLight,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.25),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            children: [
+              // Illustration on the right
+              Positioned(
+                right: 0,
+                bottom: -10,
+                child: Image.asset(
+                  imagePath,
+                  height: imageHeight,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.2,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white60,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

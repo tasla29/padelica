@@ -23,7 +23,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   
   // Phone input state
   String _fullPhoneNumber = '';
-  PhoneNumber _initialPhoneNumber = PhoneNumber(isoCode: 'RS'); // Default to Serbia
+  final PhoneNumber _initialPhoneNumber = PhoneNumber(isoCode: 'RS'); // Default to Serbia
   
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;

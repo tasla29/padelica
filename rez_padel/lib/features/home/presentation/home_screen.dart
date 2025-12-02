@@ -24,51 +24,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final screens = [
       _HomeContent(userFirstName: user?.firstName ?? 'Igrač'),
-      const BookingsScreen(), // Using existing bookings screen as placeholder
-      const _PlaceholderScreen(title: 'Profil'),
+      const SafeArea(child: BookingsScreen()), // Using existing bookings screen as placeholder
+      const SafeArea(child: _PlaceholderScreen(title: 'Profil')),
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.deepNavy,
-      body: SafeArea(
-        child: screens[_currentIndex],
-      ),
-      bottomNavigationBar: Theme(
-        data: Theme.of(context).copyWith(
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-        ),
-        child: BottomNavigationBar(
-          backgroundColor: AppColors.deepNavy,
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: AppColors.hotPink,
-          unselectedItemColor: Colors.white70,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedLabelStyle: GoogleFonts.montserrat(
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
-          ),
-          unselectedLabelStyle: GoogleFonts.montserrat(
-            fontWeight: FontWeight.w400,
-            fontSize: 12,
-          ),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month_rounded),
-              label: 'Moje Rezervacije',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded),
-              label: 'Profil',
+      backgroundColor: _currentIndex == 0 ? AppColors.hotPink : AppColors.deepNavy,
+      appBar: _currentIndex == 0 ? _buildAppBar() : null,
+      body: screens[_currentIndex],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceDark,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
             ),
           ],
+        ),
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+          ),
+          child: BottomNavigationBar(
+            backgroundColor: Colors.transparent,
+            currentIndex: _currentIndex,
+            onTap: (index) => setState(() => _currentIndex = index),
+            type: BottomNavigationBarType.fixed,
+            selectedItemColor: AppColors.hotPink,
+            unselectedItemColor: Colors.white70,
+            showSelectedLabels: true,
+            showUnselectedLabels: true,
+            selectedLabelStyle: GoogleFonts.montserrat(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+            unselectedLabelStyle: GoogleFonts.montserrat(
+              fontWeight: FontWeight.w400,
+              fontSize: 12,
+            ),
+            elevation: 0,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_rounded),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.sports_tennis),
+                label: 'Rezervacije',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_rounded),
+                label: 'Profil',
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: _currentIndex == 0
@@ -94,6 +106,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           : null,
     );
   }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.hotPink,
+      elevation: 0,
+      centerTitle: false,
+      title: Text(
+        'Padel Space',
+        style: GoogleFonts.montserrat(
+          fontSize: 20,
+          fontWeight: FontWeight.w800, // ExtraBold
+          color: Colors.white,
+          letterSpacing: 0.5,
+        ),
+      ),
+      actions: [
+        IconButton(
+          onPressed: () {
+            setState(() => _currentIndex = 2); // Navigate to profile screen
+          },
+          icon: const Icon(
+            Icons.menu,
+            color: Colors.white,
+            size: 28,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _HomeContent extends ConsumerWidget {
@@ -105,16 +146,27 @@ class _HomeContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final courtsAsync = ref.watch(activeCourtsProvider);
 
-    return RefreshIndicator(
-      onRefresh: () => ref.refresh(activeCourtsProvider.future),
-      color: AppColors.hotPink,
-      backgroundColor: AppColors.deepNavy,
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.all(24.0),
-            sliver: SliverList(
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.deepNavy,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(30),
+        ),
+        child: RefreshIndicator(
+          onRefresh: () => ref.refresh(activeCourtsProvider.future),
+          color: AppColors.hotPink,
+          backgroundColor: AppColors.deepNavy,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+              sliver: SliverList(
               delegate: SliverChildListDelegate([
                 _buildHeader(context, ref),
                 const SizedBox(height: 32),
@@ -188,6 +240,8 @@ class _HomeContent extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

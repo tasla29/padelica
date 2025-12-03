@@ -16,6 +16,8 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   int _selectedDateIndex = 0;
   // Selected time slot index
   int? _selectedTimeIndex;
+  // Selected duration index (0 = 60min, 1 = 90min, 2 = 120min)
+  int? _selectedDurationIndex;
   // Selected court index
   int? _selectedCourtIndex;
 
@@ -28,6 +30,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     {'name': 'C1', 'isBooked': true}, // Mock booked
     {'name': 'C2', 'isBooked': false},
   ];
+
+  // Duration options in minutes
+  final List<int> _durations = [60, 90, 120];
 
   // Generate list of dates (today + 30 days)
   List<DateTime> get _dates {
@@ -63,28 +68,38 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Date selector section (Fixed at top)
-                _buildDateSelector(),
-
-                // Scrollable content
+                // Scrollable content (including date selector)
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.only(bottom: 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Date selector section (now scrollable with rest of content)
+                        _buildDateSelector(),
+
                         const SizedBox(height: 24),
                         // Time Section Title
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            'Izaberi vreme',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.schedule,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Izaberi vreme',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -93,22 +108,63 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
 
                         const SizedBox(height: 32),
 
+                        // Duration Section Title
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.timer,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Izaberi trajanje',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Duration Grid
+                        _buildDurationGrid(),
+
+                        const SizedBox(height: 32),
+
                         // Court Section Title
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            'Izaberi teren',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.sports_baseball,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Izaberi teren',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 12),
                         // Court Grid
                         _buildCourtGrid(),
+
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -154,20 +210,31 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-          child: Text(
-            'Izaberi datum',
-            style: GoogleFonts.montserrat(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              letterSpacing: 0.5,
-            ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.calendar_today,
+                size: 18,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Izaberi datum',
+                style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
         ),
         SizedBox(
           height: 80,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: _dates.length,
             itemBuilder: (context, index) {
@@ -175,6 +242,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
               final isSelected = index == _selectedDateIndex;
               final dayName = _getDayName(date);
               final dayNumber = date.day.toString();
+              final monthName = _getMonthName(date);
 
               return GestureDetector(
                 onTap: () {
@@ -199,7 +267,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                         dayName,
                         style: GoogleFonts.montserrat(
                           fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w700,
                           color: isSelected ? Colors.white : Colors.white60,
                         ),
                       ),
@@ -210,6 +278,15 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
                           color: isSelected ? Colors.white : Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        monthName,
+                        style: GoogleFonts.montserrat(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: isSelected ? Colors.white70 : Colors.white54,
                         ),
                       ),
                     ],
@@ -227,6 +304,12 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     // Serbian day names abbreviated
     const days = ['Pon', 'Uto', 'Sre', 'Čet', 'Pet', 'Sub', 'Ned'];
     return days[date.weekday - 1];
+  }
+
+  String _getMonthName(DateTime date) {
+    // Serbian month names abbreviated
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'];
+    return months[date.month - 1];
   }
 
   Widget _buildTimeSlotGrid() {
@@ -277,6 +360,54 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     );
   }
 
+  Widget _buildDurationGrid() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 2.0,
+        ),
+        itemCount: _durations.length,
+        itemBuilder: (context, index) {
+          final duration = _durations[index];
+          final isSelected = index == _selectedDurationIndex;
+
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedDurationIndex = index;
+              });
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.hotPink : AppColors.cardNavyLight,
+                borderRadius: BorderRadius.circular(8),
+                border: isSelected
+                    ? Border.all(color: AppColors.hotPink, width: 2)
+                    : null,
+              ),
+              child: Center(
+                child: Text(
+                  '${duration}min',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? Colors.white : Colors.white70,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildCourtGrid() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -306,13 +437,10 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                   },
             child: Container(
               decoration: BoxDecoration(
-                color: AppColors.cardNavyLight,
+                color: isSelected ? AppColors.hotPink : AppColors.cardNavyLight,
                 borderRadius: BorderRadius.circular(12),
                 border: isSelected
-                    ? Border.all(
-                        color: AppColors.brightBlue,
-                        width: 2,
-                      ) // Blue border for selection
+                    ? Border.all(color: AppColors.hotPink, width: 2)
                     : Border.all(color: Colors.white24, width: 1),
               ),
               child: Stack(
@@ -324,28 +452,10 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                       style: GoogleFonts.montserrat(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: isBooked ? Colors.white30 : Colors.white,
+                        color: isBooked ? Colors.white30 : (isSelected ? Colors.white : Colors.white),
                       ),
                     ),
                   ),
-                  // Selection Checkmark
-                  if (isSelected)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: AppColors.brightBlue,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check,
-                          size: 10,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
                   // Booked Label
                   if (isBooked)
                     Center(
@@ -359,7 +469,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          'Booked',
+                          'Nije dostupno',
                           style: GoogleFonts.montserrat(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
@@ -379,10 +489,10 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
 
   Widget _buildBookButton() {
     final hasSelection =
-        _selectedTimeIndex != null && _selectedCourtIndex != null;
+        _selectedTimeIndex != null && _selectedDurationIndex != null && _selectedCourtIndex != null;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
       decoration: BoxDecoration(
         color: AppColors.deepNavy,
         boxShadow: [
@@ -395,25 +505,26 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
       ),
       child: SizedBox(
         width: double.infinity,
-        height: 56,
+        height: 50,
         child: ElevatedButton(
           onPressed: hasSelection
-              ? () {
-                  final selectedDate = _dates[_selectedDateIndex];
-                  final selectedTime = _timeSlots[_selectedTimeIndex!];
-                  final selectedCourt = _courts[_selectedCourtIndex!]['name'];
-                  final formattedDate =
-                      '${selectedDate.day.toString().padLeft(2, '0')}.${selectedDate.month.toString().padLeft(2, '0')}.${selectedDate.year}';
+                ? () {
+                    final selectedDate = _dates[_selectedDateIndex];
+                    final selectedTime = _timeSlots[_selectedTimeIndex!];
+                    final selectedDuration = _durations[_selectedDurationIndex!];
+                    final selectedCourt = _courts[_selectedCourtIndex!]['name'];
+                    final formattedDate =
+                        '${selectedDate.day.toString().padLeft(2, '0')}.${selectedDate.month.toString().padLeft(2, '0')}.${selectedDate.year}';
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Rezervacija: $formattedDate u $selectedTime ($selectedCourt) - uskoro!',
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Rezervacija: $formattedDate u $selectedTime (${selectedDuration}min, $selectedCourt) - uskoro!',
+                        ),
+                        backgroundColor: AppColors.hotPink,
                       ),
-                      backgroundColor: AppColors.hotPink,
-                    ),
-                  );
-                }
+                    );
+                  }
               : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.hotPink,

@@ -102,7 +102,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       actions: [
         IconButton(
           onPressed: () {
-            setState(() => _currentIndex = 2); // Navigate to profile screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ProfileScreen(),
+              ),
+            );
           },
           icon: const Icon(Icons.menu, color: Colors.white, size: 28),
         ),
@@ -313,10 +318,11 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Booking flow - uskoro!'),
-            backgroundColor: AppColors.hotPink,
+        // Navigate to BookingsScreen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const BookingsScreen(),
           ),
         );
       },

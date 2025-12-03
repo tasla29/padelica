@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl_phone_number_input/intl_phone_number_input.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/split_phone_input_widget.dart';
 import 'auth_controller.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -23,7 +23,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   
   // Phone input state
   String _fullPhoneNumber = '';
-  final PhoneNumber _initialPhoneNumber = PhoneNumber(isoCode: 'RS'); // Default to Serbia
   
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
@@ -84,8 +83,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState.isLoading;
-    final inputFillColor = Theme.of(context).inputDecorationTheme.fillColor ?? Colors.white;
-    final inputBorderColor = Theme.of(context).inputDecorationTheme.border?.borderSide.color ?? Colors.grey;
 
     return Scaffold(
       body: Center(
@@ -149,46 +146,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           ),
                           const SizedBox(height: 16),
                           
-                          // Integrated Phone Input
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: inputFillColor,
-                              border: Border.all(color: inputBorderColor),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: InternationalPhoneNumberInput(
-                              onInputChanged: (PhoneNumber number) {
-                                _fullPhoneNumber = number.phoneNumber ?? '';
-                              },
-                              selectorConfig: const SelectorConfig(
-                                selectorType: PhoneInputSelectorType.BOTTOM_SHEET,
-                                showFlags: true,
-                                useEmoji: true,
-                                leadingPadding: 0,
-                                trailingSpace: false,
-                                setSelectorButtonAsPrefixIcon: true,
-                              ),
-                              ignoreBlank: false,
-                              autoValidateMode: AutovalidateMode.disabled,
-                              selectorTextStyle: const TextStyle(color: Colors.white),
-                              textStyle: const TextStyle(color: Colors.white),
-                              initialValue: _initialPhoneNumber,
-                              formatInput: true,
-                              keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-                              inputBorder: InputBorder.none,
-                              inputDecoration: const InputDecoration(
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                errorBorder: InputBorder.none,
-                                disabledBorder: InputBorder.none,
-                                hintText: 'Broj telefona',
-                                hintStyle: TextStyle(color: Colors.grey),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                              errorMessage: 'Neispravan format',
-                            ),
+                          // Split Phone Input
+                          SplitPhoneInputWidget(
+                            onChanged: (countryCode, phoneNumber) {
+                              setState(() {
+                                _fullPhoneNumber = '$countryCode$phoneNumber';
+                              });
+                            },
+                            initialCountryCode: 'RS',
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Obavezno polje';
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 16),
                         ],

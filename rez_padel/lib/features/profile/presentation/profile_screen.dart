@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
+import 'edit_profile_screen.dart';
+import 'activity_screen.dart';
+import 'payments_screen.dart';
+import 'settings_screen.dart';
 
 /// Profile screen - User profile and account management
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -20,40 +24,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.hotPink,
+      backgroundColor: AppColors.deepNavy,
       appBar: _buildAppBar(),
-      body: Container(
-        color: AppColors.hotPink, // Pink background for the curve effect
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.deepNavy,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile Header Section
-                _buildProfileHeader(),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Profile Header Section
+            _buildProfileHeader(),
 
-                const SizedBox(height: 32),
+            const SizedBox(height: 32),
 
-                // Your Account Section
-                _buildAccountSection(),
+            // Your Account Section
+            _buildAccountSection(),
 
-                const SizedBox(height: 32),
+            const SizedBox(height: 32),
 
-                // Support Section
-                _buildSupportSection(),
+            // Support Section
+            _buildSupportSection(),
 
-                const SizedBox(height: 32),
+            const SizedBox(height: 32),
 
-                // Legal Information Section
-                _buildLegalSection(),
-              ],
-            ),
-          ),
+            // Legal Information Section
+            _buildLegalSection(),
+
+            const SizedBox(height: 32),
+
+            // Logout Section
+            _buildLogoutSection(),
+          ],
         ),
       ),
     );
@@ -73,14 +73,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           letterSpacing: 0.5,
         ),
       ),
-      actions: [
-        IconButton(
-          onPressed: () {
-            // TODO: Navigate to menu/settings
-          },
-          icon: const Icon(Icons.menu, color: Colors.white, size: 28),
-        ),
-      ],
     );
   }
 
@@ -160,9 +152,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _buildProfileListItem(
           icon: Icons.person,
           title: 'Izmeni profil',
-          description: 'Ime, email, telefon, lokacija, pol,...',
+          description: 'Ime, email, telefon, lozinka...',
           onTap: () {
-            // TODO: Navigate to edit profile
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const EditProfileScreen(),
+              ),
+            );
           },
         ),
         _buildProfileListItem(
@@ -170,7 +167,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           title: 'Vaša aktivnost',
           description: 'Mečevi, časovi, takmičenja, grupe...',
           onTap: () {
-            // TODO: Navigate to activity
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ActivityScreen(),
+              ),
+            );
           },
         ),
         _buildProfileListItem(
@@ -178,7 +180,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           title: 'Vaša plaćanja',
           description: 'Načini plaćanja, transakcije, klub...',
           onTap: () {
-            // TODO: Navigate to payments
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PaymentsScreen(),
+              ),
+            );
           },
         ),
         _buildProfileListItem(
@@ -186,7 +193,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           title: 'Podešavanja',
           description: 'Konfiguriši privatnost, obaveštenja, bezbednost...',
           onTap: () {
-            // TODO: Navigate to settings
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SettingsScreen(),
+              ),
+            );
           },
         ),
       ],
@@ -247,8 +259,64 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        // Placeholder for legal items - can be added later
+        _buildProfileListItem(
+          icon: Icons.description,
+          title: 'Uslovi korišćenja',
+          description: '',
+          onTap: () {
+            // TODO: Navigate to terms of service
+          },
+        ),
+        _buildProfileListItem(
+          icon: Icons.privacy_tip,
+          title: 'Politika privatnosti',
+          description: '',
+          onTap: () {
+            // TODO: Navigate to privacy policy
+          },
+        ),
       ],
+    );
+  }
+
+  Widget _buildLogoutSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: GestureDetector(
+        onTap: () {
+          // TODO: Implement logout functionality
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.red.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.logout,
+                color: Colors.red.shade300,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Odjavi se',
+                style: GoogleFonts.montserrat(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red.shade300,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

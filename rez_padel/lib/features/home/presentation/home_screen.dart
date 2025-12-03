@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../bookings/bookings_screen.dart';
+import '../../profile/presentation/profile_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -22,8 +23,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final screens = [
       _HomeContent(userFirstName: user?.firstName ?? 'Igrač'),
-      const BookingsScreen(), // Using existing bookings screen as placeholder
-      const SafeArea(child: _PlaceholderScreen(title: 'Profil')),
+      const BookingsScreen(),
+      const ProfileScreen(),
     ];
 
     return Scaffold(
@@ -480,22 +481,3 @@ class _ActionCard extends StatelessWidget {
   }
 }
 
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-
-  const _PlaceholderScreen({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        title,
-        style: GoogleFonts.montserrat(
-          fontSize: 24,
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-}

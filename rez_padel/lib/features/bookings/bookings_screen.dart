@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../profile/presentation/profile_screen.dart';
+import 'presentation/booking_controller.dart';
+import 'domain/court_model.dart';
+import 'domain/center_settings_model.dart';
 
 /// Bookings screen - View and manage court bookings
 class BookingsScreen extends ConsumerStatefulWidget {
@@ -26,76 +29,56 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   // Toggle for showing only available time slots
   bool _showAvailableTimesOnly = true;
 
-  // Mock courts data
-  final List<Map<String, dynamic>> _courts = [
-    {
-      'name': 'Padel 1',
-      'isBooked': false,
-      'attributes': ['Zatvoren', 'Dupli'],
-      'basePricePerHour': 2000,
-    },
-    {
-      'name': 'Padel 2',
-      'isBooked': false,
-      'attributes': ['Otvoren', 'Dupli'],
-      'basePricePerHour': 2500,
-    },
-    {
-      'name': 'Padel 3',
-      'isBooked': false,
-      'attributes': ['Zatvoren', 'Dupli'],
-      'basePricePerHour': 2000,
-    },
-    {
-      'name': 'Padel 4',
-      'isBooked': true, // Mock booked
-      'attributes': ['Zatvoren', 'Singl'],
-      'basePricePerHour': 1800,
-    },
-    {
-      'name': 'Padel 5',
-      'isBooked': true, // Mock booked
-      'attributes': ['Otvoren', 'Dupli'],
-      'basePricePerHour': 2500,
-    },
-    {
-      'name': 'Padel 6',
-      'isBooked': false,
-      'attributes': ['Zatvoren', 'Dupli'],
-      'basePricePerHour': 2000,
-    },
-  ];
+  // Get courts from provider
+  List<CourtModel> get _courts {
+    final courtsAsync = ref.read(courtsProvider);
+    return courtsAsync.value ?? [];
+  }
 
-  // Duration options in minutes
-  final List<int> _durations = [60, 90, 120];
+  // Get center settings from provider
+  CenterSettingsModel? get _centerSettings {
+    final settingsAsync = ref.read(centerSettingsProvider);
+    return settingsAsync.value;
+  }
 
-  // Generate list of dates (today + 30 days)
+  // Generate list of dates based on center settings
   List<DateTime> get _dates {
+    final settings = _centerSettings;
+    final advanceDays = settings?.advanceBookingDays ?? 30;
     final now = DateTime.now();
-    return List.generate(30, (index) => now.add(Duration(days: index)));
+    return List.generate(advanceDays, (index) => now.add(Duration(days: index)));
   }
 
-  // Generate time slots from 09:00 to 22:00 (30 min intervals)
+  // Generate time slots based on center settings
   List<String> get _timeSlots {
-    final slots = <String>[];
-    for (int hour = 9; hour < 22; hour++) {
-      slots.add('${hour.toString().padLeft(2, '0')}:00');
-      slots.add('${hour.toString().padLeft(2, '0')}:30');
+    final settings = _centerSettings;
+    if (settings == null) {
+      // Fallback to default if settings not loaded
+      final slots = <String>[];
+      for (int hour = 9; hour < 22; hour++) {
+        slots.add('${hour.toString().padLeft(2, '0')}:00');
+        slots.add('${hour.toString().padLeft(2, '0')}:30');
+      }
+      slots.add('22:00');
+      return slots;
     }
-    slots.add('22:00'); // Last slot
-    return slots;
+    return settings.generateTimeSlots();
   }
 
-  // Mock data for unavailable time slots (for demonstration)
-  final Set<String> _unavailableTimeSlots = {
-    '10:00',
-    '14:30',
-    '18:00',
-  };
+  // Get valid durations based on center settings
+  List<int> get _durations {
+    final settings = _centerSettings;
+    if (settings == null) {
+      return [60, 90, 120]; // Default fallback
+    }
+    return settings.getValidDurations();
+  }
 
-  // Check if a time slot is available
+  // Check if a time slot is available (placeholder - will be implemented with booking checks)
   bool _isTimeSlotAvailable(String timeSlot) {
-    return !_unavailableTimeSlots.contains(timeSlot);
+    // TODO: Check against actual bookings in database
+    // For now, return true (all slots appear available)
+    return true;
   }
 
   // Get filtered time slots based on toggle
@@ -107,16 +90,31 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   }
 
   // Get filtered courts based on toggle
-  List<Map<String, dynamic>> get _filteredCourts {
-    if (_showAvailableOnly) {
-      return _courts.where((court) => court['isBooked'] == false).toList();
-    }
+  List<CourtModel> get _filteredCourts {
+    // For now, return all courts (availability checking will be implemented later)
     return _courts;
   }
 
   // Calculate price based on duration and base price per hour
+  // Note: This is a placeholder - actual pricing will use PricingModel
   int _calculatePrice(int basePricePerHour, int durationMinutes) {
     return (basePricePerHour * (durationMinutes / 60)).round();
+  }
+
+  // Get court attributes as list of strings
+  List<String> _getCourtAttributes(CourtModel court) {
+    final attributes = <String>[];
+    if (court.isIndoor) {
+      attributes.add('Zatvoren');
+    } else {
+      attributes.add('Otvoren');
+    }
+    if (court.isSingle) {
+      attributes.add('Singl');
+    } else {
+      attributes.add('Dupli');
+    }
+    return attributes;
   }
 
   // Format price with thousand separators (Serbian format)
@@ -127,12 +125,14 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     );
   }
 
-  void _showBookingConfirmationModal(BuildContext context, Map<String, dynamic> court) {
+  void _showBookingConfirmationModal(BuildContext context, CourtModel court) {
     // Calculate price - use selected duration or default to 60min
     final duration = _selectedDurationIndex != null 
         ? _durations[_selectedDurationIndex!] 
         : 60; // Default to 60 minutes
-    final basePricePerHour = (court['basePricePerHour'] as int?) ?? 0;
+    // TODO: Use PricingModel to calculate actual price based on date, time, duration
+    // For now, use placeholder calculation
+    final basePricePerHour = 2000; // Placeholder
     final price = _calculatePrice(basePricePerHour, duration);
     
     final selectedDate = _dates[_selectedDateIndex];
@@ -160,6 +160,72 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch providers for data
+    final courtsAsync = ref.watch(courtsProvider);
+    final centerSettingsAsync = ref.watch(centerSettingsProvider);
+
+    // Show loading state if any data is loading
+    if (courtsAsync.isLoading || centerSettingsAsync.isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.hotPink,
+        appBar: _buildAppBar(),
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: Colors.white,
+          ),
+        ),
+      );
+    }
+
+    // Show error state if any data failed to load
+    if (courtsAsync.hasError || centerSettingsAsync.hasError) {
+      return Scaffold(
+        backgroundColor: AppColors.hotPink,
+        appBar: _buildAppBar(),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: Colors.white,
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                courtsAsync.hasError 
+                    ? 'Greška pri učitavanju terena: ${courtsAsync.error}'
+                    : 'Greška pri učitavanju podešavanja: ${centerSettingsAsync.error}',
+                style: GoogleFonts.montserrat(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  ref.invalidate(courtsProvider);
+                  ref.invalidate(centerSettingsProvider);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.hotPink,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(
+                  'Pokušaj ponovo',
+                  style: GoogleFonts.montserrat(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.hotPink,
       appBar: _buildAppBar(),
@@ -591,12 +657,10 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                 onChanged: (value) {
                   setState(() {
                     _showAvailableOnly = value;
-                    // Reset selection if selected court becomes hidden
+                                    // Reset selection if selected court becomes hidden
                     if (value && _selectedCourtIndex != null) {
-                      final selectedCourt = _courts[_selectedCourtIndex!];
-                      if (selectedCourt['isBooked'] == true) {
-                        _selectedCourtIndex = null;
-                      }
+                      // TODO: Check actual availability when implemented
+                      // For now, keep selection
                     }
                   });
                 },
@@ -616,45 +680,40 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
             itemCount: _filteredCourts.length,
             itemBuilder: (context, index) {
               final court = _filteredCourts[index];
-              final courtName = court['name'] as String? ?? '';
-              // Find original index by matching court name
-              final originalIndex = _courts.indexWhere((c) => c['name'] == courtName);
-              final isBooked = court['isBooked'] as bool? ?? false;
-              final isSelected = originalIndex >= 0 && originalIndex == _selectedCourtIndex;
-              final attributes = (court['attributes'] as List<dynamic>?)?.cast<String>() ?? <String>[];
-              final basePricePerHour = (court['basePricePerHour'] as int?) ?? 0;
-              
+              final isSelected = index == _selectedCourtIndex;
+              final attributes = _getCourtAttributes(court);
+              // TODO: Check actual availability when booking checks are implemented
               // Calculate price - use selected duration or default to 60min
               final duration = _selectedDurationIndex != null 
                   ? _durations[_selectedDurationIndex!] 
                   : 60; // Default to 60 minutes
+              // TODO: Use PricingModel to calculate actual price
+              final basePricePerHour = 2000; // Placeholder
               final price = _calculatePrice(basePricePerHour, duration);
               final durationText = '$duration min';
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: GestureDetector(
-                  onTap: isBooked
-                      ? null
-                      : () {
-                          // Check if time and duration are selected
-                          if (_selectedTimeIndex == null || _selectedDurationIndex == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Molimo izaberite vreme i trajanje pre izbora terena'),
-                                backgroundColor: AppColors.hotPink,
-                              ),
-                            );
-                            return;
-                          }
+                  onTap: () {
+                    // Check if time and duration are selected
+                    if (_selectedTimeIndex == null || _selectedDurationIndex == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Molimo izaberite vreme i trajanje pre izbora terena'),
+                          backgroundColor: AppColors.hotPink,
+                        ),
+                      );
+                      return;
+                    }
 
-                          setState(() {
-                            _selectedCourtIndex = originalIndex;
-                          });
-                          
-                          // Show confirmation modal
-                          _showBookingConfirmationModal(context, _courts[originalIndex]);
-                        },
+                    setState(() {
+                      _selectedCourtIndex = index;
+                    });
+                    
+                    // Show confirmation modal
+                    _showBookingConfirmationModal(context, court);
+                  },
                   child: Container(
                     decoration: BoxDecoration(
                       color: AppColors.cardNavyLight,
@@ -663,113 +722,78 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                           ? Border.all(color: AppColors.hotPink, width: 2)
                           : Border.all(color: Colors.white24, width: 1),
                     ),
-                    child: Stack(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Left side: Court name and attributes
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      courtName,
-                                      style: GoogleFonts.montserrat(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                        color: isBooked ? Colors.white30 : Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      attributes.join(' | '),
-                                      style: GoogleFonts.montserrat(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                        color: isBooked ? Colors.white24 : Colors.white60,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              // Right side: Price card
-                              if (!isBooked)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.cardNavy,
-                                    borderRadius: BorderRadius.circular(8),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.5),
-                                        blurRadius: 5,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        '${_formatPrice(price)} RSD',
-                                        style: GoogleFonts.montserrat(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        durationText,
-                                        style: GoogleFonts.montserrat(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left side: Court name and attributes
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  court.name,
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
                                   ),
                                 ),
-                            ],
-                          ),
-                        ),
-                        // Booked overlay
-                        if (isBooked)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.8),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    'Nije dostupno',
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  attributes.join(' | '),
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white60,
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
-                      ],
+                          // Right side: Price card
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.cardNavy,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.5),
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '${_formatPrice(price)} RSD',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  durationText,
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -786,7 +810,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
 }
 
 class _BookingConfirmationModal extends StatefulWidget {
-  final Map<String, dynamic> court;
+  final CourtModel court;
   final String formattedDate;
   final String selectedTime;
   final int duration;
@@ -851,7 +875,7 @@ class _BookingConfirmationModalState extends State<_BookingConfirmationModal> {
                 const SizedBox(height: 12),
                 _buildSummaryRow(Icons.schedule, '${widget.selectedTime} (${widget.duration} min)'),
                 const SizedBox(height: 12),
-                _buildSummaryRow(Icons.sports_baseball, widget.court['name']),
+                _buildSummaryRow(Icons.sports_baseball, widget.court.name),
               ],
             ),
           ),

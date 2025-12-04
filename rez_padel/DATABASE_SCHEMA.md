@@ -53,6 +53,7 @@ Physical padel courts available for booking.
 - `id` (UUID, PRIMARY KEY): Unique court identifier
 - `name` (TEXT, NOT NULL): Display name (e.g., "Teren 1", "VIP Teren")
 - `type` (TEXT, NOT NULL): Court type, either 'indoor' or 'outdoor'
+- `size` (TEXT, NOT NULL, DEFAULT 'double'): Court size, either 'single' or 'double'
 - `status` (TEXT, NOT NULL, DEFAULT 'active'): Court availability status
   - `active`: Available for booking
   - `maintenance`: Under maintenance, not bookable
@@ -76,6 +77,7 @@ Physical padel courts available for booking.
   "id": "def-456-uvw",
   "name": "Teren 1",
   "type": "indoor",
+  "size": "double",
   "status": "active",
   "description": "Glavni teren sa LED osvetljenjem",
   "image_url": "https://...storage.../court1.jpg",

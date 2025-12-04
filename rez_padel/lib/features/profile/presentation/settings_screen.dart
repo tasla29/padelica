@@ -30,6 +30,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 32),
             // Notifications Section
             _buildSection(
               title: 'Obaveštenja',
@@ -320,9 +321,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       color: Colors.transparent,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.cardNavyLight,
-        ),
         child: Row(
           children: [
             Expanded(
@@ -375,23 +373,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          decoration: BoxDecoration(
-            color: AppColors.cardNavyLight,
-          ),
           child: Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.cardNavy,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  color: Colors.white70,
-                  size: 20,
-                ),
+              Icon(
+                icon,
+                color: Colors.white70,
+                size: 20,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -442,9 +429,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       color: Colors.transparent,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.cardNavyLight,
-        ),
         child: Row(
           children: [
             Container(
@@ -485,4 +469,5 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 }
+
 

@@ -6,6 +6,7 @@ import '../profile/presentation/profile_screen.dart';
 import 'presentation/booking_controller.dart';
 import 'domain/court_model.dart';
 import 'domain/center_settings_model.dart';
+import 'data/booking_repository.dart';
 
 /// Bookings screen - View and manage court bookings
 class BookingsScreen extends ConsumerStatefulWidget {
@@ -74,9 +75,10 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     return settings.getValidDurations();
   }
 
-  // Check if a time slot is available (placeholder - will be implemented with booking checks)
+  // Cache for availability (simplified - will check per court when needed)
+  // For now, show all slots as available (will be enhanced with per-court checking)
   bool _isTimeSlotAvailable(String timeSlot) {
-    // TODO: Check against actual bookings in database
+    // TODO: Implement per-court availability checking
     // For now, return true (all slots appear available)
     return true;
   }
@@ -95,10 +97,19 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     return _courts;
   }
 
-  // Calculate price based on duration and base price per hour
-  // Note: This is a placeholder - actual pricing will use PricingModel
-  int _calculatePrice(int basePricePerHour, int durationMinutes) {
-    return (basePricePerHour * (durationMinutes / 60)).round();
+  // Calculate price using repository (async)
+  Future<double> _calculatePrice(String bookingDate, String startTime, int durationMinutes) async {
+    try {
+      final repository = ref.read(bookingRepositoryProvider);
+      return await repository.calculatePrice(
+        bookingDate: bookingDate,
+        startTime: startTime,
+        durationMinutes: durationMinutes,
+      );
+    } catch (e) {
+      // Return 0 on error (will show error in UI)
+      return 0.0;
+    }
   }
 
   // Get court attributes as list of strings
@@ -118,26 +129,49 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   }
 
   // Format price with thousand separators (Serbian format)
-  String _formatPrice(int price) {
-    return price.toString().replaceAllMapped(
+  String _formatPrice(double price) {
+    return price.toInt().toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (Match m) => '${m[1]}.',
     );
   }
 
-  void _showBookingConfirmationModal(BuildContext context, CourtModel court) {
-    // Calculate price - use selected duration or default to 60min
-    final duration = _selectedDurationIndex != null 
-        ? _durations[_selectedDurationIndex!] 
-        : 60; // Default to 60 minutes
-    // TODO: Use PricingModel to calculate actual price based on date, time, duration
-    // For now, use placeholder calculation
-    final basePricePerHour = 2000; // Placeholder
-    final price = _calculatePrice(basePricePerHour, duration);
-    
+  Future<void> _showBookingConfirmationModal(BuildContext context, CourtModel court) async {
+    // Ensure we have all required selections
+    if (_selectedTimeIndex == null || _selectedDurationIndex == null) {
+      return;
+    }
+
+    final duration = _durations[_selectedDurationIndex!];
     final selectedDate = _dates[_selectedDateIndex];
+    final bookingDate = selectedDate.toIso8601String().split('T')[0]; // Format: YYYY-MM-DD
+    final selectedTime = _timeSlots[_selectedTimeIndex!];
+    final startTime = '$selectedTime:00'; // Convert to HH:mm:ss format
+    
+    // Calculate end time
+    final timeParts = selectedTime.split(':');
+    final startHour = int.parse(timeParts[0]);
+    final startMinute = int.parse(timeParts[1]);
+    final startDateTime = DateTime(2000, 1, 1, startHour, startMinute);
+    final endDateTime = startDateTime.add(Duration(minutes: duration));
+    final endTime = '${endDateTime.hour.toString().padLeft(2, '0')}:${endDateTime.minute.toString().padLeft(2, '0')}:00';
+
+    // Calculate price using repository
+    final price = await _calculatePrice(bookingDate, startTime, duration);
+    
+    if (price == 0.0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Greška pri izračunavanju cene. Molimo pokušajte ponovo.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final formattedDate = '${selectedDate.day}. ${_getMonthName(selectedDate)} ${selectedDate.year}';
-    final selectedTime = _selectedTimeIndex != null ? _timeSlots[_selectedTimeIndex!] : '';
+
+    if (!mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -152,7 +186,14 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
         selectedTime: selectedTime,
         duration: duration,
         price: price,
+        bookingDate: bookingDate,
+        startTime: startTime,
+        endTime: endTime,
         formatPrice: _formatPrice,
+        onBookingCreated: () {
+          // Refresh courts to update availability
+          ref.invalidate(courtsProvider);
+        },
       ),
     );
   }
@@ -682,14 +723,10 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
               final court = _filteredCourts[index];
               final isSelected = index == _selectedCourtIndex;
               final attributes = _getCourtAttributes(court);
-              // TODO: Check actual availability when booking checks are implemented
-              // Calculate price - use selected duration or default to 60min
+              // Calculate duration - use selected duration or default to 60min
               final duration = _selectedDurationIndex != null 
                   ? _durations[_selectedDurationIndex!] 
                   : 60; // Default to 60 minutes
-              // TODO: Use PricingModel to calculate actual price
-              final basePricePerHour = 2000; // Placeholder
-              final price = _calculatePrice(basePricePerHour, duration);
               final durationText = '$duration min';
 
               return Padding(
@@ -773,20 +810,20 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '${_formatPrice(price)} RSD',
+                                  durationText,
                                   style: GoogleFonts.montserrat(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
                                     color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 4),
                                 Text(
-                                  durationText,
+                                  'Cena u modalu',
                                   style: GoogleFonts.montserrat(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.white,
+                                    color: Colors.white70,
                                   ),
                                 ),
                               ],
@@ -809,13 +846,17 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   // Widget _buildBookButton() { ... }
 }
 
-class _BookingConfirmationModal extends StatefulWidget {
+class _BookingConfirmationModal extends ConsumerStatefulWidget {
   final CourtModel court;
   final String formattedDate;
   final String selectedTime;
   final int duration;
-  final int price;
-  final String Function(int) formatPrice;
+  final double price;
+  final String bookingDate; // Format: "YYYY-MM-DD"
+  final String startTime; // Format: "HH:mm:ss"
+  final String endTime; // Format: "HH:mm:ss"
+  final String Function(double) formatPrice;
+  final VoidCallback onBookingCreated;
 
   const _BookingConfirmationModal({
     required this.court,
@@ -823,16 +864,21 @@ class _BookingConfirmationModal extends StatefulWidget {
     required this.selectedTime,
     required this.duration,
     required this.price,
+    required this.bookingDate,
+    required this.startTime,
+    required this.endTime,
     required this.formatPrice,
+    required this.onBookingCreated,
   });
 
   @override
-  State<_BookingConfirmationModal> createState() => _BookingConfirmationModalState();
+  ConsumerState<_BookingConfirmationModal> createState() => _BookingConfirmationModalState();
 }
 
-class _BookingConfirmationModalState extends State<_BookingConfirmationModal> {
+class _BookingConfirmationModalState extends ConsumerState<_BookingConfirmationModal> {
   String? selectedPaymentMethod; // 'cash' or 'card'
   bool termsAccepted = false;
+  bool _isCreating = false;
 
   @override
   Widget build(BuildContext context) {
@@ -979,16 +1025,8 @@ class _BookingConfirmationModalState extends State<_BookingConfirmationModal> {
             width: double.infinity,
             height: 56,
             child: ElevatedButton(
-              onPressed: (termsAccepted && selectedPaymentMethod != null) 
-                  ? () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Rezervacija uspešna!'),
-                          backgroundColor: AppColors.hotPink,
-                        ),
-                      );
-                    }
+              onPressed: (!_isCreating && termsAccepted && selectedPaymentMethod != null) 
+                  ? () => _createBooking()
                   : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.hotPink,
@@ -999,14 +1037,23 @@ class _BookingConfirmationModalState extends State<_BookingConfirmationModal> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(
-                'REZERVIŠI',
-                style: GoogleFonts.montserrat(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.0,
-                ),
-              ),
+              child: _isCreating
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      'REZERVIŠI',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -1069,5 +1116,67 @@ class _BookingConfirmationModalState extends State<_BookingConfirmationModal> {
         ),
       ),
     );
+  }
+
+  Future<void> _createBooking() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isCreating = true;
+    });
+
+    try {
+      final repository = ref.read(bookingRepositoryProvider);
+      
+      // Map payment method
+      final paymentMethod = selectedPaymentMethod == 'card' ? 'online' : 'onsite';
+
+      // Create booking
+      await repository.createBooking(
+        courtId: widget.court.id,
+        bookingDate: widget.bookingDate,
+        startTime: widget.startTime,
+        endTime: widget.endTime,
+        durationMinutes: widget.duration,
+        paymentMethod: paymentMethod,
+        totalPrice: widget.price,
+        racketRentalCount: 0, // TODO: Add racket rental selection
+        racketRentalPrice: 0.0,
+      );
+
+      if (!mounted) return;
+
+      // Close modal
+      Navigator.pop(context);
+      
+      // Call callback to refresh data
+      widget.onBookingCreated();
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Rezervacija uspešna!'),
+          backgroundColor: AppColors.hotPink,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isCreating = false;
+      });
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceAll('Exception: ', ''),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 }

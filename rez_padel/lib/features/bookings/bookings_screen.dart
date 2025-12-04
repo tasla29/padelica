@@ -75,11 +75,62 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     return settings.getValidDurations();
   }
 
+  double? _cardPrice;
+  bool _isPriceLoading = false;
+  String? _priceError;
+
+  Future<void> _updatePriceForSelection() async {
+    if (_selectedTimeIndex == null || _selectedDurationIndex == null) {
+      if (_cardPrice != null || _priceError != null) {
+        setState(() {
+          _cardPrice = null;
+          _priceError = null;
+        });
+      }
+      return;
+    }
+
+    final selectedDate = _dates[_selectedDateIndex];
+    final bookingDate = selectedDate.toIso8601String().split('T')[0];
+    final selectedTime = _timeSlots[_selectedTimeIndex!];
+    final startTime = '$selectedTime:00';
+    final duration = _durations[_selectedDurationIndex!];
+
+    setState(() {
+      _isPriceLoading = true;
+      _priceError = null;
+    });
+
+    try {
+      final price = await _calculatePrice(
+        bookingDate,
+        startTime,
+        duration,
+      );
+      if (!mounted) return;
+      setState(() {
+        _cardPrice = price;
+        _priceError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _cardPrice = null;
+        _priceError = 'Greška pri izračunavanju cene';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPriceLoading = false;
+        });
+      }
+    }
+  }
+
   // Cache for availability (simplified - will check per court when needed)
   // For now, show all slots as available (will be enhanced with per-court checking)
   bool _isTimeSlotAvailable(String timeSlot) {
     // TODO: Implement per-court availability checking
-    // For now, return true (all slots appear available)
     return true;
   }
 
@@ -93,23 +144,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
 
   // Get filtered courts based on toggle
   List<CourtModel> get _filteredCourts {
-    // For now, return all courts (availability checking will be implemented later)
     return _courts;
-  }
-
-  // Calculate price using repository (async)
-  Future<double> _calculatePrice(String bookingDate, String startTime, int durationMinutes) async {
-    try {
-      final repository = ref.read(bookingRepositoryProvider);
-      return await repository.calculatePrice(
-        bookingDate: bookingDate,
-        startTime: startTime,
-        durationMinutes: durationMinutes,
-      );
-    } catch (e) {
-      // Return 0 on error (will show error in UI)
-      return 0.0;
-    }
   }
 
   // Get court attributes as list of strings
@@ -136,11 +171,36 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     );
   }
 
+  String _getPriceBadgeText() {
+    if (_isPriceLoading) {
+      return 'Izračunavam cenu...';
+    }
+    if (_priceError != null) {
+      return _priceError!;
+    }
+    if (_cardPrice != null) {
+      return '${_formatPrice(_cardPrice!)} RSD';
+    }
+    return 'Izaberi vreme';
+  }
+
+  Future<double> _calculatePrice(String bookingDate, String startTime, int durationMinutes) {
+    final repository = ref.read(bookingRepositoryProvider);
+    return repository.calculatePrice(
+      bookingDate: bookingDate,
+      startTime: startTime,
+      durationMinutes: durationMinutes,
+    );
+  }
+
   Future<void> _showBookingConfirmationModal(BuildContext context, CourtModel court) async {
     // Ensure we have all required selections
     if (_selectedTimeIndex == null || _selectedDurationIndex == null) {
       return;
     }
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final sheetContext = context;
 
     final duration = _durations[_selectedDurationIndex!];
     final selectedDate = _dates[_selectedDateIndex];
@@ -160,7 +220,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     final price = await _calculatePrice(bookingDate, startTime, duration);
     
     if (price == 0.0) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Greška pri izračunavanju cene. Molimo pokušajte ponovo.'),
           backgroundColor: Colors.red,
@@ -174,7 +234,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     if (!mounted) return;
 
     showModalBottomSheet(
-      context: context,
+      context: sheetContext,
       isScrollControlled: true,
       backgroundColor: AppColors.deepNavy,
       shape: const RoundedRectangleBorder(
@@ -503,6 +563,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                     _selectedDateIndex = index;
                     _selectedTimeIndex = null; // Reset time selection
                   });
+                  _updatePriceForSelection();
                 },
                 child: Container(
                   width: 56,
@@ -595,6 +656,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                     setState(() {
                       _selectedTimeIndex = originalIndex;
                     });
+                    _updatePriceForSelection();
                   },
             child: Container(
               decoration: BoxDecoration(
@@ -649,6 +711,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
               setState(() {
                 _selectedDurationIndex = index;
               });
+              _updatePriceForSelection();
             },
             child: Container(
               decoration: BoxDecoration(
@@ -819,11 +882,11 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Cena u modalu',
+                                  _getPriceBadgeText(),
                                   style: GoogleFonts.montserrat(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
                                   ),
                                 ),
                               ],
@@ -1125,6 +1188,9 @@ class _BookingConfirmationModalState extends ConsumerState<_BookingConfirmationM
       _isCreating = true;
     });
 
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     try {
       final repository = ref.read(bookingRepositoryProvider);
       
@@ -1147,13 +1213,13 @@ class _BookingConfirmationModalState extends ConsumerState<_BookingConfirmationM
       if (!mounted) return;
 
       // Close modal
-      Navigator.pop(context);
+      navigator.pop();
       
       // Call callback to refresh data
       widget.onBookingCreated();
 
       // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Rezervacija uspešna!'),
           backgroundColor: AppColors.hotPink,
@@ -1168,7 +1234,7 @@ class _BookingConfirmationModalState extends ConsumerState<_BookingConfirmationM
       });
 
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(
             e.toString().replaceAll('Exception: ', ''),

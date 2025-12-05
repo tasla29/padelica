@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/split_phone_input_widget.dart';
 import 'auth_controller.dart';
@@ -111,7 +112,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       children: [
                         Text(
                           _isLogin ? 'Prijavi se' : 'Registruj se',
-                          style: Theme.of(context).textTheme.headlineSmall,
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontSize: 20,
+                              ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
@@ -122,9 +125,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _firstNameController,
-                                  decoration: const InputDecoration(
+                                  style: GoogleFonts.montserrat(fontSize: 12),
+                                  decoration: InputDecoration(
                                     labelText: 'Ime',
-                                    prefixIcon: Icon(Icons.person_outline),
+                                    prefixIcon: const Icon(Icons.person_outline),
+                                    labelStyle: GoogleFonts.montserrat(fontSize: 12),
+                                    hintStyle: GoogleFonts.montserrat(fontSize: 12),
                                   ),
                                   validator: (value) =>
                                       value?.isEmpty ?? true ? 'Obavezno polje' : null,
@@ -134,9 +140,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               Expanded(
                                 child: TextFormField(
                                   controller: _lastNameController,
-                                  decoration: const InputDecoration(
+                                  style: GoogleFonts.montserrat(fontSize: 12),
+                                  decoration: InputDecoration(
                                     labelText: 'Prezime',
-                                    prefixIcon: Icon(Icons.person_outline),
+                                    prefixIcon: const Icon(Icons.person_outline),
+                                    labelStyle: GoogleFonts.montserrat(fontSize: 12),
+                                    hintStyle: GoogleFonts.montserrat(fontSize: 12),
                                   ),
                                   validator: (value) =>
                                       value?.isEmpty ?? true ? 'Obavezno polje' : null,
@@ -166,9 +175,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
                         TextFormField(
                           controller: _emailController,
-                          decoration: const InputDecoration(
+                          style: GoogleFonts.montserrat(fontSize: 12),
+                          decoration: InputDecoration(
                             labelText: 'Email',
-                            prefixIcon: Icon(Icons.email_outlined),
+                            prefixIcon: const Icon(Icons.email_outlined),
+                            labelStyle: GoogleFonts.montserrat(fontSize: 12),
+                            hintStyle: GoogleFonts.montserrat(fontSize: 12),
                           ),
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) =>
@@ -177,8 +189,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _passwordController,
+                          style: GoogleFonts.montserrat(fontSize: 12),
                           decoration: InputDecoration(
                             labelText: 'Lozinka',
+                            labelStyle: GoogleFonts.montserrat(fontSize: 12),
+                            hintStyle: GoogleFonts.montserrat(fontSize: 12),
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(
@@ -203,8 +218,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _confirmPasswordController,
+                            style: GoogleFonts.montserrat(fontSize: 12),
                             decoration: InputDecoration(
                               labelText: 'Potvrdi lozinku',
+                              labelStyle: GoogleFonts.montserrat(fontSize: 12),
+                              hintStyle: GoogleFonts.montserrat(fontSize: 12),
                               prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
                                 icon: Icon(

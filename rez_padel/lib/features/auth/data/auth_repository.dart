@@ -27,7 +27,6 @@ class AuthRepository {
     required String lastName,
     required String phone,
   }) async {
-    // Pass user metadata so the DB Trigger can create the profile
     return await _supabase.auth.signUp(
       email: email,
       password: password,
@@ -45,19 +44,70 @@ class AuthRepository {
 
   Future<UserModel?> getCurrentUser() async {
     final user = _supabase.auth.currentUser;
-    if (user == null) return null;
-
-    try {
-      final profile = await _supabase
-          .from('users')
-          .select()
-          .eq('id', user.id)
-          .single();
-
-      return UserModel.fromSupabase(user, profile);
-    } catch (e) {
-      // If profile doesn't exist yet or fetch fails
+    if (user == null) {
+      print('📍 AuthRepository: No current user');
       return null;
     }
+
+    print('📍 AuthRepository: Found auth user ${user.id}, fetching profile...');
+
+    try {
+      // Try fetching profile with timeout and retry logic
+      final profile = await _fetchProfileWithRetry(user.id, maxAttempts: 3);
+      
+      if (profile == null) {
+        print('⚠️ AuthRepository: Profile not found after retries');
+        return null;
+      }
+
+      print('✅ AuthRepository: Profile fetched successfully');
+      return UserModel.fromSupabase(user, profile);
+    } catch (e) {
+      print('❌ AuthRepository: Error fetching profile - $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _fetchProfileWithRetry(
+    String userId, {
+    int maxAttempts = 3,
+  }) async {
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        print('📍 Attempt $attempt/$maxAttempts to fetch profile...');
+        
+        final response = await _supabase
+            .from('users')
+            .select()
+            .eq('id', userId)
+            .maybeSingle() // Use maybeSingle instead of single to avoid exception on empty result
+            .timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                print('⏰ Profile fetch timeout on attempt $attempt');
+                return null;
+              },
+            );
+
+        if (response != null) {
+          return response as Map<String, dynamic>;
+        }
+
+        // If profile doesn't exist yet, wait before retrying
+        if (attempt < maxAttempts) {
+          print('⏳ Profile not found, waiting before retry...');
+          await Future.delayed(Duration(milliseconds: 500 * attempt));
+        }
+      } catch (e) {
+        print('❌ Error on attempt $attempt: $e');
+        if (attempt < maxAttempts) {
+          await Future.delayed(Duration(milliseconds: 500 * attempt));
+        } else {
+          rethrow;
+        }
+      }
+    }
+
+    return null;
   }
 }

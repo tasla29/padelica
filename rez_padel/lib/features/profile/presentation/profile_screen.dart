@@ -6,6 +6,8 @@ import 'edit_profile_screen.dart';
 import 'activity_screen.dart';
 import 'payments_screen.dart';
 import 'settings_screen.dart';
+import '../../auth/presentation/auth_controller.dart';
+import '../../auth/presentation/auth_gate.dart';
 
 /// Profile screen - User profile and account management
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -283,8 +285,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: GestureDetector(
-        onTap: () {
-          // TODO: Implement logout functionality
+        onTap: () async {
+          try {
+            await ref.read(authControllerProvider.notifier).signOut();
+            if (!mounted) return;
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const AuthGate()),
+              (route) => false,
+            );
+          } catch (_) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Odjava neuspešna. Pokušaj ponovo.'),
+                backgroundColor: AppColors.hotPink,
+              ),
+            );
+          }
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

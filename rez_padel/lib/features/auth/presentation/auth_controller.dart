@@ -9,20 +9,29 @@ final authControllerProvider = AsyncNotifierProvider<AuthController, UserModel?>
 });
 
 class AuthController extends AsyncNotifier<UserModel?> {
+  StreamSubscription<AuthState>? _authSubscription;
+
   @override
   FutureOr<UserModel?> build() async {
     final repository = ref.watch(authRepositoryProvider);
     
-    // Listen to auth state changes
-    final sub = repository.onAuthStateChange.listen((data) {
+    // Set up auth state listener only once
+    _authSubscription ??= repository.onAuthStateChange.listen((data) {
       final AuthChangeEvent event = data.event;
-      if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.signedOut) {
-        ref.invalidateSelf();
+      if (event == AuthChangeEvent.signedIn || 
+          event == AuthChangeEvent.tokenRefreshed) {
+        // Only refresh if we're not already loading
+        if (!state.isLoading) {
+          ref.invalidateSelf();
+        }
+      } else if (event == AuthChangeEvent.signedOut) {
+        state = const AsyncValue.data(null);
       }
     });
     
     ref.onDispose(() {
-      sub.cancel();
+      _authSubscription?.cancel();
+      _authSubscription = null;
     });
     
     return await repository.getCurrentUser();
@@ -32,8 +41,10 @@ class AuthController extends AsyncNotifier<UserModel?> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await ref.read(authRepositoryProvider).signInWithEmailAndPassword(email, password);
-      return await ref.read(authRepositoryProvider).getCurrentUser();
+      final user = await ref.read(authRepositoryProvider).getCurrentUser();
+      return user;
     });
+    // Don't call ref.invalidateSelf() here - the listener will handle it
   }
 
   Future<void> signUp({
@@ -52,8 +63,10 @@ class AuthController extends AsyncNotifier<UserModel?> {
         lastName: lastName,
         phone: phone,
       );
-      return await ref.read(authRepositoryProvider).getCurrentUser();
+      final user = await ref.read(authRepositoryProvider).getCurrentUser();
+      return user;
     });
+    // Don't call ref.invalidateSelf() here - the listener will handle it
   }
 
   Future<void> signOut() async {
@@ -62,6 +75,6 @@ class AuthController extends AsyncNotifier<UserModel?> {
       await ref.read(authRepositoryProvider).signOut();
       return null;
     });
+    // Don't call ref.invalidateSelf() here - the listener will handle it
   }
 }
-

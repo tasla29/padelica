@@ -21,7 +21,7 @@ class PhoneInputWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     // Consistent text style for both country code and phone number
     final textStyle = GoogleFonts.montserrat(
-      fontSize: 16,
+      fontSize: 12,
       fontWeight: FontWeight.w500,
       color: Colors.white,
     );
@@ -52,7 +52,7 @@ class PhoneInputWidget extends StatelessWidget {
         disabledBorder: InputBorder.none,
         hintText: hintText ?? 'Broj telefona',
         hintStyle: GoogleFonts.montserrat(
-          fontSize: 16,
+          fontSize: 12,
           fontWeight: FontWeight.w400,
           color: Colors.white54,
         ),

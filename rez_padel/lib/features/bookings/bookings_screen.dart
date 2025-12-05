@@ -525,7 +525,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     // Show loading state if any data is loading
     if (courtsAsync.isLoading || centerSettingsAsync.isLoading) {
       return Scaffold(
-        backgroundColor: AppColors.hotPink,
+        backgroundColor: AppColors.deepNavy,
         appBar: _buildAppBar(),
         body: const Center(
           child: CircularProgressIndicator(

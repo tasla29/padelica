@@ -124,7 +124,7 @@ class _SplitPhoneInputStatefulWidgetState
   @override
   Widget build(BuildContext context) {
     final textStyle = GoogleFonts.montserrat(
-      fontSize: 16,
+      fontSize: 12,
       fontWeight: FontWeight.w500,
       color: Colors.white,
     );
@@ -147,64 +147,59 @@ class _SplitPhoneInputStatefulWidgetState
         Row(
           children: [
             // Country Code Selector
-            Expanded(
+            Flexible(
               flex: 2,
-              child: Container(
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppColors.cardNavyLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DropdownButtonFormField<String>(
-                  initialValue: _selectedCountryCode,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: AppColors.hotPink,
-                        width: 2,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: Colors.transparent,
+              child: DropdownButtonFormField<String>(
+                isExpanded: true,
+                alignment: Alignment.centerLeft,
+                initialValue: _selectedCountryCode,
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
                   ),
-                  dropdownColor: AppColors.cardNavy,
-                  style: textStyle,
-                  icon: Icon(
-                    Icons.keyboard_arrow_down,
-                    color: Colors.white60,
-                    size: 20,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
-                  items: SplitPhoneInputWidget._countries.map((country) {
-                    return DropdownMenuItem<String>(
-                      value: country.code,
-                      child: Text(
-                        country.displayText,
-                        style: textStyle,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedCountryCode = value;
-                      });
-                      _notifyChange();
-                    }
-                  },
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: AppColors.hotPink,
+                      width: 2,
+                    ),
+                  ),
+                  filled: false,
                 ),
+                dropdownColor: AppColors.cardNavy,
+                style: textStyle,
+                icon: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: Colors.white60,
+                  size: 18,
+                ),
+                items: SplitPhoneInputWidget._countries.map((country) {
+                  return DropdownMenuItem<String>(
+                    value: country.code,
+                    child: Text(
+                      country.displayText,
+                      style: textStyle,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedCountryCode = value;
+                    });
+                    _notifyChange();
+                  }
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -220,12 +215,11 @@ class _SplitPhoneInputStatefulWidgetState
                 decoration: InputDecoration(
                   hintText: widget.hintText ?? 'Broj telefona',
                   hintStyle: GoogleFonts.montserrat(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w400,
                     color: Colors.white54,
                   ),
-                  filled: true,
-                  fillColor: AppColors.cardNavyLight,
+                  filled: false,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 16,

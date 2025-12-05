@@ -7,6 +7,7 @@ import 'presentation/booking_controller.dart';
 import 'presentation/booking_success_screen.dart';
 import 'domain/court_model.dart';
 import 'domain/center_settings_model.dart';
+import 'domain/booking_model.dart';
 import 'data/booking_repository.dart';
 
 /// Bookings screen - View and manage court bookings
@@ -34,6 +35,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   Map<String, bool> _availabilityBySlot = {};
   String? _availabilityDateKey;
   bool _availabilityLoading = false;
+  // Cached bookings for the selected date (courtId -> bookings)
+  Map<String, List<BookingModel>> _bookingsByCourt = {};
+  String? _bookingsDateKey;
   // Per-court availability for the current selection (courtId -> available)
   Map<String, bool> _courtAvailability = {};
   // Key to ensure cache matches current selection (e.g., "2024-12-06|09:00|60")
@@ -190,54 +194,22 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     }
 
     final bookingDate = _currentBookingDateKey;
-    final slots = _timeSlots;
-    final repository = ref.read(bookingRepositoryProvider);
     final durationToUse = durationMinutes ?? (_selectedDurationMinutes ?? _minDuration);
+
+    // Ensure we have bookings for the day; if not, fetch them
+    if (_bookingsDateKey != bookingDate) {
+      await _loadBookingsForDate();
+      if (_bookingsDateKey != bookingDate) {
+        // If still not set, abort to avoid bad state
+        return;
+      }
+    }
 
     setState(() {
       _availabilityLoading = true;
-      _availabilityBySlot = {};
     });
 
-    final availability = <String, bool>{};
-
-    for (final slot in slots) {
-      // Skip slots that cannot fit the duration
-      if (!_slotFitsDuration(slot, durationToUse)) {
-        availability[slot] = false;
-        continue;
-      }
-
-      bool slotAvailable = false;
-      final parts = slot.split(':');
-      final startHour = int.parse(parts[0]);
-      final startMinute = int.parse(parts[1]);
-      final startDateTime = DateTime(2000, 1, 1, startHour, startMinute);
-      final endDateTime = startDateTime.add(Duration(minutes: durationToUse));
-      final startTime = _formatTimeWithSeconds(startDateTime.hour, startDateTime.minute);
-      final endTime = _formatTimeWithSeconds(endDateTime.hour, endDateTime.minute);
-
-      for (final court in courts) {
-        try {
-          final isAvailable = await repository.checkSlotAvailability(
-            courtId: court.id,
-            bookingDate: bookingDate,
-            startTime: startTime,
-            endTime: endTime,
-          );
-          if (isAvailable) {
-            slotAvailable = true;
-            break;
-          }
-        } catch (_) {
-          // If check fails, don't block the slot (be optimistic)
-          slotAvailable = true;
-          break;
-        }
-      }
-
-      availability[slot] = slotAvailable;
-    }
+    final availability = _computeAvailabilityForDuration(durationToUse, courts);
 
     if (!mounted) return;
 
@@ -253,10 +225,81 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     return '${normalizedHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}:00';
   }
 
+  int _parseMinutes(String hhmmss) {
+    final parts = hhmmss.split(':');
+    final h = int.parse(parts[0]);
+    final m = int.parse(parts[1]);
+    return h * 60 + m;
+  }
+
+  Map<String, bool> _computeAvailabilityForDuration(int durationMinutes, List<CourtModel> courts) {
+    final slots = _timeSlots.where((slot) => _slotFitsDuration(slot, durationMinutes));
+    final availability = <String, bool>{};
+
+    for (final slot in slots) {
+      final parts = slot.split(':');
+      final startHour = int.parse(parts[0]);
+      final startMinute = int.parse(parts[1]);
+      final startTotal = startHour * 60 + startMinute;
+      final endTotal = startTotal + durationMinutes;
+
+      bool slotAvailable = false;
+
+      for (final court in courts) {
+        final bookings = _bookingsByCourt[court.id] ?? [];
+        bool overlaps = false;
+        for (final b in bookings) {
+          final bStart = _parseMinutes(b.startTime);
+          final bEnd = _parseMinutes(b.endTime);
+          // overlap if bStart < end && bEnd > start
+          if (bStart < endTotal && bEnd > startTotal) {
+            overlaps = true;
+            break;
+          }
+        }
+        if (!overlaps) {
+          slotAvailable = true;
+          break;
+        }
+      }
+
+      availability[slot] = slotAvailable;
+    }
+
+    return availability;
+  }
+
   bool _isDurationSelectable(int durationMinutes) {
     if (_selectedTimeIndex == null) return true;
     final timeSlot = _timeSlots[_selectedTimeIndex!];
     return _slotFitsDuration(timeSlot, durationMinutes);
+  }
+
+  Future<void> _loadBookingsForDate() async {
+    final bookingDate = _currentBookingDateKey;
+    final repository = ref.read(bookingRepositoryProvider);
+
+    try {
+      final allBookings = await repository.getAllBookingsForDate(bookingDate: bookingDate);
+      final grouped = <String, List<BookingModel>>{};
+      for (final b in allBookings) {
+        grouped.putIfAbsent(b.courtId, () => []).add(b);
+      }
+      // Sort bookings by start time per court for faster checks
+      for (final list in grouped.values) {
+        list.sort((a, b) => _parseMinutes(a.startTime).compareTo(_parseMinutes(b.startTime)));
+      }
+      setState(() {
+        _bookingsByCourt = grouped;
+        _bookingsDateKey = bookingDate;
+      });
+    } catch (_) {
+      // If fetch fails, clear cache so we don't use stale data
+      setState(() {
+        _bookingsByCourt = {};
+        _bookingsDateKey = null;
+      });
+    }
   }
 
   String? get _currentSelectionKey {
@@ -786,9 +829,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                         _courtAvailability = {};
                         _courtAvailabilityKey = null;
                   });
-                      _updatePriceForSelection();
-                      _loadAvailabilityForSelectedDate(durationMinutes: _selectedDurationMinutes);
-                      _scheduleCourtAvailabilityLoad();
+                  _updatePriceForSelection();
+                  _loadAvailabilityForSelectedDate(durationMinutes: _selectedDurationMinutes);
+                  _scheduleCourtAvailabilityLoad();
                 },
                 child: Container(
                   width: 56,
@@ -952,10 +995,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
           if (_availabilityLoading || _availabilityDateKey != _currentBookingDateKey)
             Positioned.fill(
               child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.35),
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                color: AppColors.deepNavy,
                 child: const Center(
                   child: SizedBox(
                     height: 32,

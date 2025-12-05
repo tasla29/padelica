@@ -34,7 +34,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String _originalEmail = 'marko.latas@example.com';
   String _originalPhone = '+381641234567';
   
-  String _userInitials = 'ML';
+  final String _userInitials = 'ML';
 
   @override
   void dispose() {

@@ -159,6 +159,26 @@ class BookingRepository {
     }
   }
 
+  /// Get all bookings for a specific date across all courts (confirmed or pending)
+  Future<List<BookingModel>> getAllBookingsForDate({
+    required String bookingDate, // Format: "YYYY-MM-DD"
+  }) async {
+    try {
+      final response = await _supabase
+          .from('bookings')
+          .select()
+          .eq('booking_date', bookingDate)
+          .or('status.eq.confirmed,status.eq.pending')
+          .order('start_time', ascending: true);
+
+      return (response as List<dynamic>)
+          .map((json) => BookingModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw Exception('Greška pri učitavanju rezervacija: $e');
+    }
+  }
+
   /// Create a new booking
   /// Returns the created booking
   Future<BookingModel> createBooking({

@@ -156,7 +156,7 @@ class _SplitPhoneInputStatefulWidgetState
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: DropdownButtonFormField<String>(
-                  value: _selectedCountryCode,
+                  initialValue: _selectedCountryCode,
                   decoration: InputDecoration(
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,

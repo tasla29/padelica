@@ -109,13 +109,9 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.cardNavyLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
+            // Contact
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -140,13 +136,9 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.cardNavyLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
+            // Location
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

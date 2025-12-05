@@ -5,6 +5,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../bookings/bookings_screen.dart';
 import '../../profile/presentation/profile_screen.dart';
+import '../../profile/presentation/activity_screen.dart';
+import '../../bookings/data/booking_repository.dart';
+import '../../bookings/domain/booking_model.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -197,17 +200,39 @@ class _HomeContent extends ConsumerWidget {
 }
 
 /// Upcoming Activities Section with empty state
-class _UpcomingActivitiesSection extends StatelessWidget {
+final _upcomingBookingsProvider = FutureProvider<List<BookingModel>>((ref) async {
+  final repo = ref.read(bookingRepositoryProvider);
+  final bookings = await repo.getUserBookings(); // includes court name if joined
+  final now = DateTime.now();
+
+  DateTime toDateTime(BookingModel b) {
+    final date = DateTime.parse(b.bookingDate);
+    final parts = b.startTime.split(':');
+    final h = int.parse(parts[0]);
+    final m = int.parse(parts[1]);
+    return DateTime(date.year, date.month, date.day, h, m);
+  }
+
+  final upcoming = bookings
+      .where((b) => (b.status == 'confirmed' || b.status == 'pending') && toDateTime(b).isAfter(now))
+      .toList()
+    ..sort((a, b) => toDateTime(a).compareTo(toDateTime(b)));
+
+  return upcoming;
+});
+
+class _UpcomingActivitiesSection extends ConsumerWidget {
   const _UpcomingActivitiesSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncBookings = ref.watch(_upcomingBookingsProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Section Title
         Text(
-          'Tvoje aktivnosti',
+          'Sledeći termin',
           style: GoogleFonts.montserrat(
             fontSize: 14,
             fontWeight: FontWeight.w700,
@@ -216,43 +241,244 @@ class _UpcomingActivitiesSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        // Empty State Card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-          decoration: BoxDecoration(
-            color: AppColors.cardNavyLight,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.deepNavy,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.calendar_today_rounded,
-                  color: Colors.white.withOpacity(0.4),
-                  size: 24,
+        asyncBookings.when(
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: SizedBox(
+                height: 28,
+                width: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  'Nemaš zakazane termine',
+            ),
+          ),
+          error: (err, _) => _EmptyStateCard(
+            title: 'Greška pri učitavanju',
+            subtitle: 'Pokušaj ponovo kasnije',
+            icon: Icons.error_outline,
+          ),
+          data: (bookings) {
+            if (bookings.isEmpty) {
+              return _EmptyStateCard(
+                title: 'Nemaš zakazane termine',
+                subtitle: 'Rezerviši termin i pojaviće se ovde',
+                icon: Icons.calendar_today_rounded,
+              );
+            }
+
+            final first = bookings.first;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _BookingPreviewCard(
+                  booking: first,
+                ),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ActivityScreen(),
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text(
+                      'Pokaži sve moje termine',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.hotPink,
+                        decoration: TextDecoration.underline,
+                        decorationColor: AppColors.hotPink,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyStateCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  const _EmptyStateCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.cardNavyLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.deepNavy,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white.withOpacity(0.5),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
                   style: GoogleFonts.montserrat(
                     fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white60,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BookingPreviewCard extends StatelessWidget {
+  final BookingModel booking;
+
+  const _BookingPreviewCard({
+    required this.booking,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final parsedDate = DateTime.parse(booking.bookingDate);
+    final weekday = [
+      'Ponedeljak',
+      'Utorak',
+      'Sreda',
+      'Četvrtak',
+      'Petak',
+      'Subota',
+      'Nedelja'
+    ][parsedDate.weekday - 1];
+    final monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Maj',
+      'Jun',
+      'Jul',
+      'Avg',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Dec'
+    ];
+    final dateStr =
+        '$weekday, ${parsedDate.day.toString().padLeft(2, '0')} ${monthNames[parsedDate.month - 1]} ${parsedDate.year}';
+    final timeStr = booking.startTime.substring(0, 5); // HH:mm
+    final duration = booking.durationMinutes;
+    final court = booking.courtName ?? 'Teren';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+      decoration: BoxDecoration(
+        color: AppColors.cardNavyLight,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.calendar_today, size: 16, color: Colors.white70),
+              const SizedBox(width: 8),
+              Text(
+                dateStr,
+                style: GoogleFonts.montserrat(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.schedule, size: 16, color: Colors.white70),
+              const SizedBox(width: 8),
+              Text(
+                '$timeStr • ${duration}min',
+                style: GoogleFonts.montserrat(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.sports_tennis, size: 16, color: Colors.white70),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  court,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
                 ),
               ),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_confetti/flutter_confetti.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
@@ -32,6 +33,22 @@ class BookingSuccessScreen extends StatefulWidget {
 }
 
 class _BookingSuccessScreenState extends State<BookingSuccessScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Trigger a brief confetti blast after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Confetti.launch(
+        context,
+        options: const ConfettiOptions(
+          particleCount: 100,
+          spread: 70,
+          y: 0.6,
+        ),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

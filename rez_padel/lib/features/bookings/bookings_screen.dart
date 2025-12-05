@@ -30,9 +30,8 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   bool _showAvailableOnly = true;
   // Toggle for showing only available time slots
   bool _showAvailableTimesOnly = true;
-  // Cache of availability per slot for the selected date (slot string -> available)
+  // Availability cache per day: slot -> available (for duration used when fetched)
   Map<String, bool> _availabilityBySlot = {};
-  // Tracks which date the availability cache corresponds to (formatted YYYY-MM-DD)
   String? _availabilityDateKey;
   bool _availabilityLoading = false;
   // Per-court availability for the current selection (courtId -> available)
@@ -169,10 +168,10 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   }
 
   bool _isTimeSlotAvailable(String timeSlot) {
-    // If availability for current date is cached, use it; otherwise assume available while loading
     if (_availabilityDateKey == _currentBookingDateKey && _availabilityBySlot.containsKey(timeSlot)) {
-      return _availabilityBySlot[timeSlot] ?? true;
+      return _availabilityBySlot[timeSlot] ?? false;
     }
+    // Optimistic while loading / not fetched yet
     return true;
   }
 
@@ -181,7 +180,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     return selectedDate.toIso8601String().split('T')[0];
   }
 
-  Future<void> _loadAvailabilityForSelectedDate() async {
+  Future<void> _loadAvailabilityForSelectedDate({int? durationMinutes}) async {
     if (_availabilityLoading) return;
 
     final settings = _centerSettings;
@@ -193,7 +192,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     final bookingDate = _currentBookingDateKey;
     final slots = _timeSlots;
     final repository = ref.read(bookingRepositoryProvider);
-    final minDuration = _minDuration;
+    final durationToUse = durationMinutes ?? (_selectedDurationMinutes ?? _minDuration);
 
     setState(() {
       _availabilityLoading = true;
@@ -203,12 +202,18 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     final availability = <String, bool>{};
 
     for (final slot in slots) {
+      // Skip slots that cannot fit the duration
+      if (!_slotFitsDuration(slot, durationToUse)) {
+        availability[slot] = false;
+        continue;
+      }
+
       bool slotAvailable = false;
       final parts = slot.split(':');
       final startHour = int.parse(parts[0]);
       final startMinute = int.parse(parts[1]);
       final startDateTime = DateTime(2000, 1, 1, startHour, startMinute);
-      final endDateTime = startDateTime.add(Duration(minutes: minDuration));
+      final endDateTime = startDateTime.add(Duration(minutes: durationToUse));
       final startTime = _formatTimeWithSeconds(startDateTime.hour, startDateTime.minute);
       final endTime = _formatTimeWithSeconds(endDateTime.hour, endDateTime.minute);
 
@@ -225,8 +230,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
             break;
           }
         } catch (_) {
-          // On error, optimistically continue checking other courts; if all fail, slot remains unavailable
-          continue;
+          // If check fails, don't block the slot (be optimistic)
+          slotAvailable = true;
+          break;
         }
       }
 
@@ -251,10 +257,6 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     if (_selectedTimeIndex == null) return true;
     final timeSlot = _timeSlots[_selectedTimeIndex!];
     return _slotFitsDuration(timeSlot, durationMinutes);
-  }
-
-  void _scheduleAvailabilityLoad() {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAvailabilityForSelectedDate());
   }
 
   String? get _currentSelectionKey {
@@ -325,11 +327,25 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   List<String> get _filteredTimeSlots {
     // If duration is selected, use it; otherwise use minimum duration so late slots are hidden
     final durationForFilter = _selectedDurationMinutes ?? _minDuration;
-    final slotsByClosing = _timeSlots.where((slot) => _slotFitsDuration(slot, durationForFilter));
-    if (_showAvailableTimesOnly) {
-      return slotsByClosing.where((slot) => _isTimeSlotAvailable(slot)).toList();
+    final baseSlots = _timeSlots.where((slot) => _slotFitsDuration(slot, durationForFilter));
+
+    // If we have availability for this date, honor it
+    if (_availabilityDateKey == _currentBookingDateKey) {
+      if (_showAvailableTimesOnly) {
+        return baseSlots.where((slot) => _availabilityBySlot[slot] ?? false).toList();
+      }
+      // Show all duration-valid slots; availability info used for styling
+      return baseSlots.toList();
     }
-    return slotsByClosing.toList();
+
+    // No cache yet; conservative: show duration-valid slots only
+    return baseSlots.toList();
+  }
+
+  // Time slots filtered only by duration/closing, ignoring availability toggle
+  List<String> get _durationFilteredTimeSlots {
+    final durationForFilter = _selectedDurationMinutes ?? _minDuration;
+    return _timeSlots.where((slot) => _slotFitsDuration(slot, durationForFilter)).toList();
   }
 
   // Get filtered courts based on toggle
@@ -525,8 +541,10 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
       );
     }
 
-    // Ensure availability is loaded for the current date once data is ready
-    _scheduleAvailabilityLoad();
+    // Ensure availability is loaded for the current date if not loaded yet
+    if (!_availabilityLoading && _availabilityDateKey != _currentBookingDateKey) {
+      _loadAvailabilityForSelectedDate(durationMinutes: _selectedDurationMinutes);
+    }
 
     return Scaffold(
       backgroundColor: AppColors.hotPink,
@@ -762,15 +780,15 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                 onTap: () {
                   setState(() {
                     _selectedDateIndex = index;
-                    _selectedTimeIndex = null; // Reset time selection
-                    _availabilityBySlot = {};
-                    _availabilityDateKey = null;
-                    _courtAvailability = {};
-                    _courtAvailabilityKey = null;
+                        _selectedTimeIndex = null; // Reset time selection
+                        _availabilityBySlot = {};
+                        _availabilityDateKey = null;
+                        _courtAvailability = {};
+                        _courtAvailabilityKey = null;
                   });
-                  _updatePriceForSelection();
-                  _scheduleAvailabilityLoad();
-                  _scheduleCourtAvailabilityLoad();
+                      _updatePriceForSelection();
+                      _loadAvailabilityForSelectedDate(durationMinutes: _selectedDurationMinutes);
+                      _scheduleCourtAvailabilityLoad();
                 },
                 child: Container(
                   width: 56,
@@ -835,94 +853,122 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
 
   Widget _buildTimeSlotGrid() {
     // Show filtered slots when toggle is ON, all slots when toggle is OFF
-    final slotsToShow = _showAvailableTimesOnly ? _filteredTimeSlots : _timeSlots;
+    final slotsToShow = _showAvailableTimesOnly ? _filteredTimeSlots : _durationFilteredTimeSlots;
     
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 5,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 1.5,
-        ),
-        itemCount: slotsToShow.length,
-        itemBuilder: (context, index) {
-          final timeSlot = slotsToShow[index];
-          // Find the original index in _timeSlots
-          final originalIndex = _timeSlots.indexOf(timeSlot);
-          final isSelected = originalIndex >= 0 && originalIndex == _selectedTimeIndex;
-          final isUnavailable = !_isTimeSlotAvailable(timeSlot);
+      child: Stack(
+        children: [
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 5,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1.5,
+            ),
+            itemCount: slotsToShow.length,
+            itemBuilder: (context, index) {
+              final timeSlot = slotsToShow[index];
+              // Find the original index in _timeSlots
+              final originalIndex = _timeSlots.indexOf(timeSlot);
+              final isSelected = originalIndex >= 0 && originalIndex == _selectedTimeIndex;
+              final isUnavailable = !_isTimeSlotAvailable(timeSlot);
 
-          return GestureDetector(
-            onTap: isUnavailable
-                ? null
-                : () {
-                    setState(() {
-                      _selectedTimeIndex = originalIndex;
-                    });
-                    // If current duration makes this slot invalid, reset selection
-                    final currentDuration = _selectedDurationMinutes ?? _minDuration;
-                    if (!_slotFitsDuration(timeSlot, currentDuration)) {
-                      setState(() {
-                        _selectedTimeIndex = null;
-                      });
-                      return;
-                    }
-                    _updatePriceForSelection();
-                    _scheduleCourtAvailabilityLoad();
-                  },
-            child: Container(
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.hotPink
-                    : (isUnavailable ? AppColors.cardNavyLight.withOpacity(0.35) : AppColors.cardNavyLight),
-                borderRadius: BorderRadius.circular(8),
-                border: isSelected
-                    ? Border.all(color: AppColors.hotPink, width: 2)
-                    : null,
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      timeSlot,
-                      style: GoogleFonts.montserrat(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isUnavailable
-                            ? Colors.white30
-                            : (isSelected ? Colors.white : Colors.white70),
-                        decoration: isUnavailable ? TextDecoration.lineThrough : null,
-                        decorationColor: Colors.white30,
-                      ),
-                    ),
-                    if (isUnavailable)
-                      Container(
-                        margin: const EdgeInsets.only(top: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.white10,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Nije dostupno',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white60,
+              return GestureDetector(
+                onTap: isUnavailable
+                    ? null
+                    : () {
+                        setState(() {
+                          _selectedTimeIndex = originalIndex;
+                        });
+                        // If current duration makes this slot invalid, reset selection
+                        final currentDuration = _selectedDurationMinutes ?? _minDuration;
+                        if (!_slotFitsDuration(timeSlot, currentDuration)) {
+                          setState(() {
+                            _selectedTimeIndex = null;
+                          });
+                          return;
+                        }
+                        _updatePriceForSelection();
+                        _scheduleCourtAvailabilityLoad();
+                      },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.hotPink
+                        : (isUnavailable ? AppColors.cardNavyLight.withOpacity(0.35) : AppColors.cardNavyLight),
+                    borderRadius: BorderRadius.circular(8),
+                    border: isSelected
+                        ? Border.all(color: AppColors.hotPink, width: 2)
+                        : null,
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            timeSlot,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.montserrat(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isUnavailable
+                                  ? Colors.white30
+                                  : (isSelected ? Colors.white : Colors.white70),
+                              decoration: isUnavailable ? TextDecoration.lineThrough : null,
+                              decorationColor: Colors.white30,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                        if (isUnavailable)
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Nije dostupno',
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.montserrat(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white60,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          if (_availabilityLoading || _availabilityDateKey != _currentBookingDateKey)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    height: 32,
+                    width: 32,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
                 ),
               ),
             ),
-          );
-        },
+        ],
       ),
     );
   }
@@ -958,6 +1004,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                         }
                       }
                     });
+                    _loadAvailabilityForSelectedDate(durationMinutes: _durations[index]);
                     _updatePriceForSelection();
                     _scheduleCourtAvailabilityLoad();
                   }

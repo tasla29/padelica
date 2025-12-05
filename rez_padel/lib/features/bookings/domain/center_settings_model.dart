@@ -77,50 +77,51 @@ class CenterSettingsModel {
     
     // Parse closing time (e.g., "24:00:00" -> 24 hours = midnight next day)
     final closingParts = closingTime.split(':');
-    var closingHour = int.parse(closingParts[0]);
+    final closingHourRaw = int.parse(closingParts[0]);
     final closingMinute = int.parse(closingParts[1]);
-    
-    // Handle 24:00:00 as end of day
-    if (closingHour == 24) {
-      closingHour = 0; // Will be handled in loop
-    }
-    
-    // Generate slots
+    final isClosingAtMidnight = closingHourRaw == 24;
+
+    // Use 24 to represent midnight to avoid early break conditions
+    final closingHour = isClosingAtMidnight ? 24 : closingHourRaw;
+
     var currentHour = openingHour;
     var currentMinute = openingMinute;
-    
+
     while (true) {
       // Format time slot
       final timeSlot = '${currentHour.toString().padLeft(2, '0')}:${currentMinute.toString().padLeft(2, '0')}';
       slots.add(timeSlot);
-      
-      // Check if we've reached closing time
-      if (closingHour == 0 && currentHour == 23 && currentMinute + timeSlotInterval >= 60) {
-        // Special case: closing at 24:00, add final slot if needed
-        if (currentMinute + timeSlotInterval == 60) {
-          slots.add('24:00');
-        }
+
+      // If we've reached or passed the closing time, stop generating
+      final reachedClosing = currentHour > closingHour ||
+          (currentHour == closingHour && currentMinute >= closingMinute);
+      if (reachedClosing) {
         break;
       }
-      
-      if (currentHour > closingHour || 
-          (currentHour == closingHour && currentMinute >= closingMinute)) {
-        break;
-      }
-      
+
       // Advance to next slot
       currentMinute += timeSlotInterval;
       if (currentMinute >= 60) {
         currentHour += 1;
         currentMinute -= 60;
       }
-      
-      // Handle wrap-around to next day (if closing time is 24:00)
-      if (closingHour == 0 && currentHour >= 24) {
+
+      // Prevent going past midnight when closing is 24:00
+      if (isClosingAtMidnight && currentHour == 24 && currentMinute > 0) {
         break;
       }
     }
-    
+
+    // If closing is exactly at midnight (24:00) and we stopped on :00, ensure final marker
+    if (isClosingAtMidnight && slots.isNotEmpty && slots.last != '24:00') {
+      final last = slots.last.split(':');
+      final lastHour = int.parse(last[0]);
+      final lastMinute = int.parse(last[1]);
+      if (lastHour == 23 && lastMinute + timeSlotInterval == 60) {
+        slots.add('24:00');
+      }
+    }
+
     return slots;
   }
 

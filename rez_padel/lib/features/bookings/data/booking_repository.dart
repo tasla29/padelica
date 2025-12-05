@@ -118,17 +118,16 @@ class BookingRepository {
     required String endTime, // Format: "HH:mm:ss"
   }) async {
     try {
-      // Check if there are any overlapping bookings
+      // Check if there are any overlapping bookings (confirmed or pending)
+      // Overlap condition: existing.start < requested.end AND existing.end > requested.start
       final overlappingBookings = await _supabase
           .from('bookings')
           .select('id')
           .eq('court_id', courtId)
           .eq('booking_date', bookingDate)
-          .or('status.eq.confirmed,status.eq.pending')
-          .or(
-            // Check for overlap: booking starts before our end AND ends after our start
-            'start_time.lt.$endTime,end_time.gt.$startTime',
-          )
+          .inFilter('status', ['confirmed', 'pending'])
+          .lt('start_time', endTime)
+          .gt('end_time', startTime)
           .limit(1);
 
       // If no overlapping bookings found, slot is available

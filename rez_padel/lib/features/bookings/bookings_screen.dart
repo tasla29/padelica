@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../profile/presentation/profile_screen.dart';
 import 'presentation/booking_controller.dart';
+import 'presentation/booking_success_screen.dart';
 import 'domain/court_model.dart';
 import 'domain/center_settings_model.dart';
 import 'data/booking_repository.dart';
@@ -29,6 +30,16 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   bool _showAvailableOnly = true;
   // Toggle for showing only available time slots
   bool _showAvailableTimesOnly = true;
+  // Cache of availability per slot for the selected date (slot string -> available)
+  Map<String, bool> _availabilityBySlot = {};
+  // Tracks which date the availability cache corresponds to (formatted YYYY-MM-DD)
+  String? _availabilityDateKey;
+  bool _availabilityLoading = false;
+  // Per-court availability for the current selection (courtId -> available)
+  Map<String, bool> _courtAvailability = {};
+  // Key to ensure cache matches current selection (e.g., "2024-12-06|09:00|60")
+  String? _courtAvailabilityKey;
+  bool _courtAvailabilityLoading = false;
 
   // Get courts from provider
   List<CourtModel> get _courts {
@@ -75,9 +86,39 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     return settings.getValidDurations();
   }
 
+  // Minimum booking duration (fallback to 60min when settings are not loaded)
+  int get _minDuration {
+    return _centerSettings?.minBookingDuration ?? 60;
+  }
+
+  int? get _selectedDurationMinutes {
+    if (_selectedDurationIndex == null) return null;
+    return _durations[_selectedDurationIndex!];
+  }
+
   double? _cardPrice;
   bool _isPriceLoading = false;
   String? _priceError;
+
+  int _closingMinutes() {
+    final settings = _centerSettings;
+    final closing = settings?.closingTime ?? '22:00:00';
+    final parts = closing.split(':');
+    var hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    // Treat 24:00 as end-of-day
+    if (hour == 24) hour = 24;
+    return hour * 60 + minute;
+  }
+
+  bool _slotFitsDuration(String timeSlot, int durationMinutes) {
+    final parts = timeSlot.split(':');
+    final startHour = int.parse(parts[0]);
+    final startMinute = int.parse(parts[1]);
+    final startTotal = startHour * 60 + startMinute;
+    final endTotal = startTotal + durationMinutes;
+    return endTotal <= _closingMinutes();
+  }
 
   Future<void> _updatePriceForSelection() async {
     if (_selectedTimeIndex == null || _selectedDurationIndex == null) {
@@ -127,24 +168,184 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     }
   }
 
-  // Cache for availability (simplified - will check per court when needed)
-  // For now, show all slots as available (will be enhanced with per-court checking)
   bool _isTimeSlotAvailable(String timeSlot) {
-    // TODO: Implement per-court availability checking
+    // If availability for current date is cached, use it; otherwise assume available while loading
+    if (_availabilityDateKey == _currentBookingDateKey && _availabilityBySlot.containsKey(timeSlot)) {
+      return _availabilityBySlot[timeSlot] ?? true;
+    }
     return true;
+  }
+
+  String get _currentBookingDateKey {
+    final selectedDate = _dates[_selectedDateIndex];
+    return selectedDate.toIso8601String().split('T')[0];
+  }
+
+  Future<void> _loadAvailabilityForSelectedDate() async {
+    if (_availabilityLoading) return;
+
+    final settings = _centerSettings;
+    final courts = _courts;
+    if (settings == null || courts.isEmpty) {
+      return;
+    }
+
+    final bookingDate = _currentBookingDateKey;
+    final slots = _timeSlots;
+    final repository = ref.read(bookingRepositoryProvider);
+    final minDuration = _minDuration;
+
+    setState(() {
+      _availabilityLoading = true;
+      _availabilityBySlot = {};
+    });
+
+    final availability = <String, bool>{};
+
+    for (final slot in slots) {
+      bool slotAvailable = false;
+      final parts = slot.split(':');
+      final startHour = int.parse(parts[0]);
+      final startMinute = int.parse(parts[1]);
+      final startDateTime = DateTime(2000, 1, 1, startHour, startMinute);
+      final endDateTime = startDateTime.add(Duration(minutes: minDuration));
+      final startTime = _formatTimeWithSeconds(startDateTime.hour, startDateTime.minute);
+      final endTime = _formatTimeWithSeconds(endDateTime.hour, endDateTime.minute);
+
+      for (final court in courts) {
+        try {
+          final isAvailable = await repository.checkSlotAvailability(
+            courtId: court.id,
+            bookingDate: bookingDate,
+            startTime: startTime,
+            endTime: endTime,
+          );
+          if (isAvailable) {
+            slotAvailable = true;
+            break;
+          }
+        } catch (_) {
+          // On error, optimistically continue checking other courts; if all fail, slot remains unavailable
+          continue;
+        }
+      }
+
+      availability[slot] = slotAvailable;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _availabilityBySlot = availability;
+      _availabilityDateKey = bookingDate;
+      _availabilityLoading = false;
+    });
+  }
+
+  String _formatTimeWithSeconds(int hour, int minute) {
+    final normalizedHour = hour % 24;
+    return '${normalizedHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}:00';
+  }
+
+  bool _isDurationSelectable(int durationMinutes) {
+    if (_selectedTimeIndex == null) return true;
+    final timeSlot = _timeSlots[_selectedTimeIndex!];
+    return _slotFitsDuration(timeSlot, durationMinutes);
+  }
+
+  void _scheduleAvailabilityLoad() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAvailabilityForSelectedDate());
+  }
+
+  String? get _currentSelectionKey {
+    if (_selectedTimeIndex == null || _selectedDurationIndex == null) return null;
+    final date = _currentBookingDateKey;
+    final time = _timeSlots[_selectedTimeIndex!];
+    final duration = _durations[_selectedDurationIndex!];
+    return '$date|$time|$duration';
+  }
+
+  Future<void> _loadCourtAvailabilityForSelection() async {
+    if (_courtAvailabilityLoading) return;
+    if (!_hasTimeAndDurationSelected) return;
+
+    final courts = _courts;
+    if (courts.isEmpty) return;
+
+    final bookingDate = _currentBookingDateKey;
+    final selectedTime = _timeSlots[_selectedTimeIndex!];
+    final duration = _durations[_selectedDurationIndex!];
+    final timeParts = selectedTime.split(':');
+    final startHour = int.parse(timeParts[0]);
+    final startMinute = int.parse(timeParts[1]);
+    final startDateTime = DateTime(2000, 1, 1, startHour, startMinute);
+    final endDateTime = startDateTime.add(Duration(minutes: duration));
+    final startTime = _formatTimeWithSeconds(startDateTime.hour, startDateTime.minute);
+    final endTime = _formatTimeWithSeconds(endDateTime.hour, endDateTime.minute);
+
+    final repository = ref.read(bookingRepositoryProvider);
+    final selectionKey = _currentSelectionKey;
+
+    setState(() {
+      _courtAvailabilityLoading = true;
+      _courtAvailability = {};
+    });
+
+    final availability = <String, bool>{};
+
+    for (final court in courts) {
+      try {
+        final isAvailable = await repository.checkSlotAvailability(
+          courtId: court.id,
+          bookingDate: bookingDate,
+          startTime: startTime,
+          endTime: endTime,
+        );
+        availability[court.id] = isAvailable;
+      } catch (_) {
+        // If error, keep optimistic availability to avoid blocking UX
+        availability[court.id] = true;
+      }
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _courtAvailability = availability;
+      _courtAvailabilityKey = selectionKey;
+      _courtAvailabilityLoading = false;
+    });
+  }
+
+  void _scheduleCourtAvailabilityLoad() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadCourtAvailabilityForSelection());
   }
 
   // Get filtered time slots based on toggle
   List<String> get _filteredTimeSlots {
+    // If duration is selected, use it; otherwise use minimum duration so late slots are hidden
+    final durationForFilter = _selectedDurationMinutes ?? _minDuration;
+    final slotsByClosing = _timeSlots.where((slot) => _slotFitsDuration(slot, durationForFilter));
     if (_showAvailableTimesOnly) {
-      return _timeSlots.where((slot) => _isTimeSlotAvailable(slot)).toList();
+      return slotsByClosing.where((slot) => _isTimeSlotAvailable(slot)).toList();
     }
-    return _timeSlots;
+    return slotsByClosing.toList();
   }
 
   // Get filtered courts based on toggle
   List<CourtModel> get _filteredCourts {
+    if (_showAvailableOnly && _hasTimeAndDurationSelected) {
+      if (_courtAvailabilityKey == _currentSelectionKey) {
+        return _courts.where((court) => _courtAvailability[court.id] ?? false).toList();
+      }
+      // Availability not loaded yet for current selection
+      return [];
+    }
     return _courts;
+  }
+
+  bool get _hasTimeAndDurationSelected {
+    return _selectedTimeIndex != null && _selectedDurationIndex != null;
   }
 
   // Get court attributes as list of strings
@@ -172,9 +373,6 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   }
 
   String _getPriceBadgeText() {
-    if (_isPriceLoading) {
-      return 'Izračunavam cenu...';
-    }
     if (_priceError != null) {
       return _priceError!;
     }
@@ -326,6 +524,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
         ),
       );
     }
+
+    // Ensure availability is loaded for the current date once data is ready
+    _scheduleAvailabilityLoad();
 
     return Scaffold(
       backgroundColor: AppColors.hotPink,
@@ -562,8 +763,14 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                   setState(() {
                     _selectedDateIndex = index;
                     _selectedTimeIndex = null; // Reset time selection
+                    _availabilityBySlot = {};
+                    _availabilityDateKey = null;
+                    _courtAvailability = {};
+                    _courtAvailabilityKey = null;
                   });
                   _updatePriceForSelection();
+                  _scheduleAvailabilityLoad();
+                  _scheduleCourtAvailabilityLoad();
                 },
                 child: Container(
                   width: 56,
@@ -656,30 +863,61 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                     setState(() {
                       _selectedTimeIndex = originalIndex;
                     });
+                    // If current duration makes this slot invalid, reset selection
+                    final currentDuration = _selectedDurationMinutes ?? _minDuration;
+                    if (!_slotFitsDuration(timeSlot, currentDuration)) {
+                      setState(() {
+                        _selectedTimeIndex = null;
+                      });
+                      return;
+                    }
                     _updatePriceForSelection();
+                    _scheduleCourtAvailabilityLoad();
                   },
             child: Container(
               decoration: BoxDecoration(
-                color: isSelected 
-                    ? AppColors.hotPink 
-                    : (isUnavailable ? AppColors.cardNavyLight.withOpacity(0.5) : AppColors.cardNavyLight),
+                color: isSelected
+                    ? AppColors.hotPink
+                    : (isUnavailable ? AppColors.cardNavyLight.withOpacity(0.35) : AppColors.cardNavyLight),
                 borderRadius: BorderRadius.circular(8),
                 border: isSelected
                     ? Border.all(color: AppColors.hotPink, width: 2)
                     : null,
               ),
               child: Center(
-                child: Text(
-                  timeSlot,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isUnavailable 
-                        ? Colors.white30 
-                        : (isSelected ? Colors.white : Colors.white70),
-                    decoration: isUnavailable ? TextDecoration.lineThrough : null,
-                    decorationColor: Colors.white30,
-                  ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      timeSlot,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isUnavailable
+                            ? Colors.white30
+                            : (isSelected ? Colors.white : Colors.white70),
+                        decoration: isUnavailable ? TextDecoration.lineThrough : null,
+                        decorationColor: Colors.white30,
+                      ),
+                    ),
+                    if (isUnavailable)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white10,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Nije dostupno',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white60,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -705,17 +943,30 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
         itemBuilder: (context, index) {
           final duration = _durations[index];
           final isSelected = index == _selectedDurationIndex;
+          final isDurationAvailable = _isDurationSelectable(duration);
 
           return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedDurationIndex = index;
-              });
-              _updatePriceForSelection();
-            },
+            onTap: isDurationAvailable
+                ? () {
+                    setState(() {
+                      _selectedDurationIndex = index;
+                      // If the previously selected time no longer fits this duration, clear it
+                      if (_selectedTimeIndex != null) {
+                        final timeSlot = _timeSlots[_selectedTimeIndex!];
+                        if (!_slotFitsDuration(timeSlot, _durations[index])) {
+                          _selectedTimeIndex = null;
+                        }
+                      }
+                    });
+                    _updatePriceForSelection();
+                    _scheduleCourtAvailabilityLoad();
+                  }
+                : null,
             child: Container(
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.hotPink : AppColors.cardNavyLight,
+                color: isSelected
+                    ? AppColors.hotPink
+                    : (isDurationAvailable ? AppColors.cardNavyLight : AppColors.cardNavyLight.withOpacity(0.5)),
                 borderRadius: BorderRadius.circular(8),
                 border: isSelected
                     ? Border.all(color: AppColors.hotPink, width: 2)
@@ -727,7 +978,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                   style: GoogleFonts.montserrat(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.white : Colors.white70,
+                    color: isDurationAvailable
+                        ? (isSelected ? Colors.white : Colors.white70)
+                        : Colors.white38,
                   ),
                 ),
               ),
@@ -739,6 +992,29 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   }
 
   Widget _buildCourtSection() {
+    if (!_hasTimeAndDurationSelected) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.cardNavyLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white24, width: 1),
+          ),
+          child: Text(
+            'Izaberi datum, vreme i trajanje pre izbora terena',
+            style: GoogleFonts.montserrat(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -761,11 +1037,6 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                 onChanged: (value) {
                   setState(() {
                     _showAvailableOnly = value;
-                                    // Reset selection if selected court becomes hidden
-                    if (value && _selectedCourtIndex != null) {
-                      // TODO: Check actual availability when implemented
-                      // For now, keep selection
-                    }
                   });
                 },
                 activeThumbColor: Colors.white,
@@ -775,6 +1046,44 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
           ),
         ),
         const SizedBox(height: 16),
+        if (_showAvailableOnly &&
+            _hasTimeAndDurationSelected &&
+            _courtAvailabilityKey != _currentSelectionKey) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.cardNavyLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white24, width: 1),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Učitavam dostupne terene...',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         // Court list
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -787,40 +1096,48 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
               final isSelected = index == _selectedCourtIndex;
               final attributes = _getCourtAttributes(court);
               // Calculate duration - use selected duration or default to 60min
-              final duration = _selectedDurationIndex != null 
-                  ? _durations[_selectedDurationIndex!] 
+              final duration = _selectedDurationIndex != null
+                  ? _durations[_selectedDurationIndex!]
                   : 60; // Default to 60 minutes
               final durationText = '$duration min';
+              final isCourtAvailable = _courtAvailabilityKey == _currentSelectionKey
+                  ? (_courtAvailability[court.id] ?? true)
+                  : true;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: GestureDetector(
-                  onTap: () {
-                    // Check if time and duration are selected
-                    if (_selectedTimeIndex == null || _selectedDurationIndex == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Molimo izaberite vreme i trajanje pre izbora terena'),
-                          backgroundColor: AppColors.hotPink,
-                        ),
-                      );
-                      return;
-                    }
+                  onTap: isCourtAvailable
+                      ? () {
+                          // Check if time and duration are selected
+                          if (_selectedTimeIndex == null || _selectedDurationIndex == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Molimo izaberite vreme i trajanje pre izbora terena'),
+                                backgroundColor: AppColors.hotPink,
+                              ),
+                            );
+                            return;
+                          }
 
-                    setState(() {
-                      _selectedCourtIndex = index;
-                    });
-                    
-                    // Show confirmation modal
-                    _showBookingConfirmationModal(context, court);
-                  },
+                          setState(() {
+                            _selectedCourtIndex = index;
+                          });
+
+                          // Show confirmation modal
+                          _showBookingConfirmationModal(context, court);
+                        }
+                      : null,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: AppColors.cardNavyLight,
+                      color: isCourtAvailable ? AppColors.cardNavyLight : AppColors.cardNavyLight.withOpacity(0.35),
                       borderRadius: BorderRadius.circular(12),
                       border: isSelected
                           ? Border.all(color: AppColors.hotPink, width: 2)
-                          : Border.all(color: Colors.white24, width: 1),
+                          : Border.all(
+                              color: isCourtAvailable ? Colors.white24 : Colors.white24.withOpacity(0.4),
+                              width: 1,
+                            ),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -837,7 +1154,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                                   style: GoogleFonts.montserrat(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                                    color: isCourtAvailable ? Colors.white : Colors.white54,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -846,9 +1163,26 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                                   style: GoogleFonts.montserrat(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.white60,
+                                    color: isCourtAvailable ? Colors.white60 : Colors.white38,
                                   ),
                                 ),
+                                if (!isCourtAvailable)
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white10,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Nije dostupno',
+                                      style: GoogleFonts.montserrat(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white60,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -881,14 +1215,23 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  _getPriceBadgeText(),
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                                _isPriceLoading
+                                    ? const SizedBox(
+                                        height: 12,
+                                        width: 12,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : Text(
+                                        _getPriceBadgeText(),
+                                        style: GoogleFonts.montserrat(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: isCourtAvailable ? Colors.white : Colors.white54,
+                                        ),
+                                      ),
                               ],
                             ),
                           ),
@@ -1214,16 +1557,23 @@ class _BookingConfirmationModalState extends ConsumerState<_BookingConfirmationM
 
       // Close modal
       navigator.pop();
-      
+
       // Call callback to refresh data
       widget.onBookingCreated();
 
-      // Show success message
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Rezervacija uspešna!'),
-          backgroundColor: AppColors.hotPink,
-          duration: Duration(seconds: 3),
+      // Navigate to success screen
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (_) => BookingSuccessScreen(
+            courtName: widget.court.name,
+            formattedDate: widget.formattedDate,
+            selectedTime: widget.selectedTime,
+            durationMinutes: widget.duration,
+            price: widget.price,
+            contactPhone: '+381 60 123 4567',
+            latitude: 44.834105521834175,
+            longitude: 20.359217255455203,
+          ),
         ),
       );
     } catch (e) {

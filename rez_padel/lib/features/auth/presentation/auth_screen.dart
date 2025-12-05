@@ -56,6 +56,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         lastName: _lastNameController.text.trim(),
         phone: _fullPhoneNumber,
       );
+      if (mounted) {
+        _showEmailVerificationDialog(_emailController.text.trim());
+      }
     }
   }
 
@@ -67,6 +70,67 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _isPasswordVisible = false;
       _isConfirmPasswordVisible = false;
     });
+  }
+
+  void _showEmailVerificationDialog(String email) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          title: Text(
+            'Potvrdi email',
+            style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          content: Text(
+            'Poslali smo link za potvrdu na $email.\n\nOtvori mejl i klikni na link da završiš registraciju. '
+            'Ako nisi dobio mejl, pošalji ponovo.',
+            style: GoogleFonts.montserrat(fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(
+                'U redu',
+                style: GoogleFonts.montserrat(fontSize: 13),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                try {
+                  await ref.read(authControllerProvider.notifier).resendConfirmationEmail(email);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Poslali smo novi email za potvrdu na $email',
+                        style: GoogleFonts.montserrat(fontSize: 13),
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Nije uspelo slanje potvrde: $e',
+                        style: GoogleFonts.montserrat(fontSize: 13),
+                      ),
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                    ),
+                  );
+                }
+              },
+              child: Text(
+                'Pošalji ponovo',
+                style: GoogleFonts.montserrat(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override

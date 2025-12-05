@@ -69,6 +69,10 @@ class AuthController extends AsyncNotifier<UserModel?> {
     // Don't call ref.invalidateSelf() here - the listener will handle it
   }
 
+  Future<void> resendConfirmationEmail(String email) async {
+    await ref.read(authRepositoryProvider).resendEmailConfirmation(email);
+  }
+
   Future<void> signOut() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {

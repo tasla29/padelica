@@ -38,6 +38,13 @@ class AuthRepository {
     );
   }
 
+  Future<void> resendEmailConfirmation(String email) async {
+    await _supabase.auth.resend(
+      type: OtpType.signup,
+      email: email,
+    );
+  }
+
   Future<void> signOut() async {
     await _supabase.auth.signOut();
   }

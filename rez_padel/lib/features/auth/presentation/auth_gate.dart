@@ -4,6 +4,7 @@ import 'auth_controller.dart';
 import 'auth_screen.dart';
 import '../../home/presentation/home_screen.dart';
 import '../../../core/theme/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AuthGate extends ConsumerStatefulWidget {
   const AuthGate({super.key});
@@ -43,11 +44,34 @@ class _AuthGateState extends ConsumerState<AuthGate> {
       },
       loading: () {
         debugPrint('⏳ AuthGate: Loading...');
-        return const Scaffold(
+        return Scaffold(
           backgroundColor: AppColors.deepNavy,
           body: Center(
-            child: CircularProgressIndicator(
-              color: AppColors.hotPink,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'PADEL SPACE',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 2.0,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: 240,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      minHeight: 8,
+                      backgroundColor: Colors.white24,
+                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.hotPink),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );

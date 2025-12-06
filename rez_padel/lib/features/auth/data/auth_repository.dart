@@ -45,6 +45,28 @@ class AuthRepository {
     );
   }
 
+  Future<void> updateEmail(String email) async {
+    await _supabase.auth.updateUser(UserAttributes(email: email));
+  }
+
+  Future<void> updatePassword(String password) async {
+    await _supabase.auth.updateUser(UserAttributes(password: password));
+  }
+
+  Future<void> updateProfile({
+    required String userId,
+    required String firstName,
+    required String lastName,
+    required String phone,
+  }) async {
+    await _supabase.from('users').update({
+      'first_name': firstName,
+      'last_name': lastName,
+      'phone': phone,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', userId);
+  }
+
   Future<void> signOut() async {
     await _supabase.auth.signOut();
   }
@@ -97,7 +119,7 @@ class AuthRepository {
             );
 
         if (response != null) {
-          return response as Map<String, dynamic>;
+          return response;
         }
 
         // If profile doesn't exist yet, wait before retrying

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/split_phone_input_widget.dart';
+import '../../auth/presentation/auth_controller.dart';
+import '../../auth/data/auth_repository.dart';
 
 /// Edit Profile screen - User profile editing form
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -15,30 +17,32 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isEditing = false;
+  bool _isSaving = false;
   
   // Form controllers
-  final TextEditingController _nameController = TextEditingController(text: 'Marko Latas');
-  final TextEditingController _emailController = TextEditingController(text: 'marko.latas@example.com');
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   
   // Phone input state
-  String _fullPhoneNumber = '+381641234567';
+  String _fullPhoneNumber = '';
   String _countryCode = '+381';
-  String _phoneNumber = '641234567';
+  String _phoneNumber = '';
   
   // Password visibility
   bool _isPasswordVisible = false;
   
   // Original values for cancel functionality
-  String _originalName = 'Marko Latas';
-  String _originalEmail = 'marko.latas@example.com';
-  String _originalPhone = '+381641234567';
-  
-  final String _userInitials = 'ML';
+  String _originalFirstName = '';
+  String _originalLastName = '';
+  String _originalEmail = '';
+  String _originalPhone = '';
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -96,14 +100,35 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _parsePhoneNumber(_fullPhoneNumber);
+    _loadUser();
+  }
+
+  void _loadUser() {
+    final authState = ref.read(authControllerProvider);
+    authState.whenData((user) {
+      if (user == null) return;
+      final derivedFirst = (user.firstName.isNotEmpty ? user.firstName : user.email.split('@').first);
+      final derivedLast = user.lastName;
+
+      _firstNameController.text = derivedFirst;
+      _lastNameController.text = derivedLast;
+      _emailController.text = user.email;
+      _fullPhoneNumber = user.phone;
+      _parsePhoneNumber(_fullPhoneNumber);
+      _originalFirstName = _firstNameController.text;
+      _originalLastName = _lastNameController.text;
+      _originalEmail = _emailController.text;
+      _originalPhone = _fullPhoneNumber;
+      setState(() {});
+    });
   }
 
   void _startEditing() {
     setState(() {
       _isEditing = true;
       // Save original values
-      _originalName = _nameController.text;
+      _originalFirstName = _firstNameController.text;
+      _originalLastName = _lastNameController.text;
       _originalEmail = _emailController.text;
       _originalPhone = _fullPhoneNumber;
     });
@@ -113,7 +138,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() {
       _isEditing = false;
       // Restore original values
-      _nameController.text = _originalName;
+      _firstNameController.text = _originalFirstName;
+      _lastNameController.text = _originalLastName;
       _emailController.text = _originalEmail;
       _fullPhoneNumber = _originalPhone;
       _parsePhoneNumber(_originalPhone);
@@ -122,22 +148,71 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   void _saveChanges() {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isEditing = false;
-        // Update original values
-        _originalName = _nameController.text;
-        _originalEmail = _emailController.text;
-        _originalPhone = _fullPhoneNumber;
-        _passwordController.clear();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profil je uspešno sačuvan!'),
-          backgroundColor: AppColors.hotPink,
-        ),
-      );
-    }
+    if (!_formKey.currentState!.validate()) return;
+
+    final authState = ref.read(authControllerProvider);
+    final user = authState.valueOrNull;
+    if (user == null) return;
+
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _fullPhoneNumber;
+    final newPassword = _passwordController.text.trim();
+
+    setState(() => _isSaving = true);
+
+    () async {
+      try {
+        // Update profile table
+        await ref.read(authRepositoryProvider).updateProfile(
+          userId: user.id,
+          firstName: firstName,
+          lastName: lastName,
+          phone: phone,
+        );
+
+        // Update email if changed
+        if (email != user.email) {
+          await ref.read(authRepositoryProvider).updateEmail(email);
+        }
+
+        // Update password if provided
+        if (newPassword.isNotEmpty) {
+          await ref.read(authRepositoryProvider).updatePassword(newPassword);
+        }
+
+        // Refresh auth controller state
+        ref.invalidate(authControllerProvider);
+
+        setState(() {
+          _isEditing = false;
+          _isSaving = false;
+          _originalFirstName = _firstNameController.text;
+          _originalLastName = _lastNameController.text;
+          _originalEmail = _emailController.text;
+          _originalPhone = _fullPhoneNumber;
+          _passwordController.clear();
+        });
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profil je uspešno sačuvan!'),
+            backgroundColor: AppColors.hotPink,
+          ),
+        );
+      } catch (e) {
+        setState(() => _isSaving = false);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Greška pri čuvanju profila: $e'),
+            backgroundColor: Colors.red.shade400,
+          ),
+        );
+      }
+    }();
   }
 
   @override
@@ -152,16 +227,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Profile Picture Section
-              _buildProfilePictureSection(),
-
-              const SizedBox(height: 32),
-
-              // Name Section
+              // First Name
               _isEditing
                   ? _buildTextField(
                       label: 'Ime',
-                      controller: _nameController,
+                      controller: _firstNameController,
                       icon: Icons.person,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -172,8 +242,29 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     )
                   : _buildInfoCard(
                       label: 'Ime',
-                      value: _nameController.text,
+                      value: _firstNameController.text,
                       icon: Icons.person,
+                    ),
+
+              const SizedBox(height: 20),
+
+              // Last Name
+              _isEditing
+                  ? _buildTextField(
+                      label: 'Prezime',
+                      controller: _lastNameController,
+                      icon: Icons.person_outline,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Molimo unesite prezime';
+                        }
+                        return null;
+                      },
+                    )
+                  : _buildInfoCard(
+                      label: 'Prezime',
+                      value: _lastNameController.text,
+                      icon: Icons.person_outline,
                     ),
 
               const SizedBox(height: 20),
@@ -227,6 +318,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
               // Action Buttons
               _isEditing ? _buildEditModeButtons() : _buildEditButton(),
+              if (_isSaving) ...[
+                const SizedBox(height: 16),
+                const Center(
+                  child: CircularProgressIndicator(color: AppColors.hotPink),
+                ),
+              ],
             ],
           ),
         ),
@@ -257,93 +354,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           color: Colors.white,
           letterSpacing: 0.5,
         ),
-      ),
-    );
-  }
-
-  Widget _buildProfilePictureSection() {
-    return Center(
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: AppColors.cardNavy,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _isEditing ? AppColors.hotPink : Colors.transparent,
-                    width: 3,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    _userInitials,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              if (_isEditing)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.hotPink,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.deepNavy,
-                        width: 2,
-                      ),
-                    ),
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
-                      onPressed: () {
-                        // TODO: Open image picker
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Funkcionalnost za promenu slike - uskoro!'),
-                            backgroundColor: AppColors.hotPink,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          if (_isEditing) ...[
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () {
-                // TODO: Open image picker
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Funkcionalnost za promenu slike - uskoro!'),
-                    backgroundColor: AppColors.hotPink,
-                  ),
-                );
-              },
-              child: Text(
-                'Promeni sliku profila',
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.hotPink,
-                ),
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }

@@ -8,6 +8,8 @@ import 'payments_screen.dart';
 import 'settings_screen.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../auth/presentation/auth_gate.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_of_service_screen.dart';
 
 /// Profile screen - User profile and account management
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -18,13 +20,22 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  // Mock user data
-  final String userName = 'Marko Latas';
-  final String accountType = 'Igrač';
-  final String userInitials = 'ML';
-
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authControllerProvider);
+
+    String displayName = 'Gost';
+    String displayRole = 'Igrač';
+    String displayInitials = 'G';
+
+    authState.whenData((user) {
+      if (user != null) {
+        displayName = user.fullName.trim().isEmpty ? user.email : user.fullName;
+        displayRole = _mapRole(user.role);
+        displayInitials = _initials(user.firstName, user.lastName);
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppColors.deepNavy,
       appBar: _buildAppBar(),
@@ -34,7 +45,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Profile Header Section
-            _buildProfileHeader(),
+            _buildProfileHeader(
+              displayName: displayName,
+              displayRole: displayRole,
+              displayInitials: displayInitials,
+            ),
 
             const SizedBox(height: 32),
 
@@ -78,7 +93,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader({
+    required String displayName,
+    required String displayRole,
+    required String displayInitials,
+  }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: Row(
@@ -90,7 +109,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  userName,
+                  displayName,
                   style: GoogleFonts.montserrat(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -100,7 +119,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  accountType,
+                  displayRole,
                   style: GoogleFonts.montserrat(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -120,7 +139,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             child: Center(
               child: Text(
-                userInitials,
+                displayInitials,
                 style: GoogleFonts.montserrat(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
@@ -132,6 +151,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  String _initials(String first, String last) {
+    final f = first.trim();
+    final l = last.trim();
+    if (f.isEmpty && l.isEmpty) return '?';
+    if (f.isNotEmpty && l.isNotEmpty) {
+      return '${f[0]}${l[0]}'.toUpperCase();
+    }
+    final combined = f.isNotEmpty ? f : l;
+    return combined.substring(0, 1).toUpperCase();
+  }
+
+  String _mapRole(String role) {
+    switch (role) {
+      case 'admin':
+        return 'Admin';
+      case 'staff':
+        return 'Osoblje';
+      default:
+        return 'Igrač';
+    }
   }
 
   Widget _buildAccountSection() {
@@ -166,7 +207,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         _buildProfileListItem(
           icon: Icons.history,
-          title: 'Vaša aktivnost',
+          title: 'Aktivnost',
           description: 'Mečevi, časovi, takmičenja, grupe...',
           onTap: () {
             Navigator.push(
@@ -179,8 +220,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         _buildProfileListItem(
           icon: Icons.wallet,
-          title: 'Vaša plaćanja',
-          description: 'Načini plaćanja, transakcije, klub...',
+          title: 'Metode plaćanja',
+          description: 'Sačuvana kartica, transakcije...',
           onTap: () {
             Navigator.push(
               context,
@@ -193,7 +234,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _buildProfileListItem(
           icon: Icons.settings,
           title: 'Podešavanja',
-          description: 'Konfiguriši privatnost, obaveštenja, bezbednost...',
+          description: 'Konfiguriši privatnost, obaveštenja...',
           onTap: () {
             Navigator.push(
               context,
@@ -266,7 +307,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           title: 'Uslovi korišćenja',
           description: '',
           onTap: () {
-            // TODO: Navigate to terms of service
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const TermsOfServiceScreen(),
+              ),
+            );
           },
         ),
         _buildProfileListItem(
@@ -274,7 +320,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           title: 'Politika privatnosti',
           description: '',
           onTap: () {
-            // TODO: Navigate to privacy policy
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PrivacyPolicyScreen(),
+              ),
+            );
           },
         ),
       ],
@@ -282,58 +333,122 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildLogoutSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: GestureDetector(
-        onTap: () async {
-          try {
-            await ref.read(authControllerProvider.notifier).signOut();
-            if (!mounted) return;
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const AuthGate()),
-              (route) => false,
-            );
-          } catch (_) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Odjava neuspešna. Pokušaj ponovo.'),
-                backgroundColor: AppColors.hotPink,
-              ),
-            );
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.red.withOpacity(0.3),
-              width: 1,
+    return _buildProfileListItem(
+      icon: Icons.logout,
+      title: 'Odjavi se',
+      description: '',
+      onTap: () async {
+        final shouldLogout = await _confirmLogout();
+        if (shouldLogout != true) return;
+        try {
+          await ref.read(authControllerProvider.notifier).signOut();
+          if (!mounted) return;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const AuthGate()),
+            (route) => false,
+          );
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Odjava neuspešna. Pokušaj ponovo.'),
+              backgroundColor: AppColors.hotPink,
+            ),
+          );
+        }
+      },
+      // force red styling
+      iconColor: Colors.red,
+      titleColor: Colors.red,
+    );
+  }
+
+  Future<bool?> _confirmLogout() {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: AppColors.cardNavy,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Odjava',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Da li ste sigurni da želite da se odjavite?',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.red.shade300, width: 1.4),
+                          foregroundColor: Colors.red.shade300,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        child: Text(
+                          'Odjavi se',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.cardNavyLight,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: Text(
+                          'Otkaži',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.logout,
-                color: Colors.red.shade300,
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Odjavi se',
-                style: GoogleFonts.montserrat(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red.shade300,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -342,6 +457,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required String title,
     required String description,
     required VoidCallback onTap,
+    Color iconColor = Colors.white70,
+    Color titleColor = Colors.white,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -360,7 +477,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               child: Icon(
                 icon,
-                color: Colors.white70,
+                color: iconColor,
                 size: 20,
               ),
             ),
@@ -375,7 +492,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     style: GoogleFonts.montserrat(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: titleColor,
                     ),
                   ),
                   if (description.isNotEmpty) ...[

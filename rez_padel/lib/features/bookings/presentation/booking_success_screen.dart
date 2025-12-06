@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../profile/presentation/activity_screen.dart';
 
 class BookingSuccessScreen extends StatefulWidget {
   final String courtName;
@@ -243,11 +244,14 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> {
                       ),
                     ),
                     onPressed: () {
-                      // Navigate to reservations list; replace with actual route
-                      Navigator.of(context).pushNamed('/reservations');
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ActivityScreen(initialTabIndex: 0),
+                        ),
+                      );
                     },
                     child: Text(
-                      'Moje rezervacije',
+                      'Moji mečevi',
                       style: GoogleFonts.montserrat(
                         fontWeight: FontWeight.w700,
                       ),

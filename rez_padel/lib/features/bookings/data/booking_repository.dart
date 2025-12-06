@@ -118,20 +118,26 @@ class BookingRepository {
     required String endTime, // Format: "HH:mm:ss"
   }) async {
     try {
-      // Check if there are any overlapping bookings (confirmed or pending)
-      // Overlap condition: existing.start < requested.end AND existing.end > requested.start
-      final overlappingBookings = await _supabase
-          .from('bookings')
-          .select('id')
-          .eq('court_id', courtId)
-          .eq('booking_date', bookingDate)
-          .inFilter('status', ['confirmed', 'pending'])
-          .lt('start_time', endTime)
-          .gt('end_time', startTime)
-          .limit(1);
+      // Use RPC to bypass RLS while returning only minimal, non-PII fields
+      final response = await _supabase
+          .rpc('get_booked_intervals', params: {'p_date': bookingDate});
 
-      // If no overlapping bookings found, slot is available
-      return (overlappingBookings as List).isEmpty;
+      bool hasOverlap = false;
+      for (final raw in (response as List<dynamic>)) {
+        final map = raw as Map<String, dynamic>;
+        if (map['court_id'] != courtId) continue;
+
+        final existingStart = map['start_time'] as String;
+        final existingEnd = map['end_time'] as String;
+
+        // Overlap condition: existing.start < requested.end AND existing.end > requested.start
+        if (existingStart.compareTo(endTime) < 0 && existingEnd.compareTo(startTime) > 0) {
+          hasOverlap = true;
+          break;
+        }
+      }
+
+      return !hasOverlap;
     } catch (e) {
       throw Exception('Greška pri proveri dostupnosti termina: $e');
     }
@@ -164,19 +170,52 @@ class BookingRepository {
     required String bookingDate, // Format: "YYYY-MM-DD"
   }) async {
     try {
+      // Fetch minimal booked intervals via RPC (bypasses RLS, no PII)
       final response = await _supabase
-          .from('bookings')
-          .select()
-          .eq('booking_date', bookingDate)
-          .or('status.eq.confirmed,status.eq.pending')
-          .order('start_time', ascending: true);
+          .rpc('get_booked_intervals', params: {'p_date': bookingDate});
 
-      return (response as List<dynamic>)
-          .map((json) => BookingModel.fromJson(json as Map<String, dynamic>))
-          .toList();
+      return (response as List<dynamic>).map((raw) {
+        final map = raw as Map<String, dynamic>;
+        final start = map['start_time'] as String;
+        final end = map['end_time'] as String;
+        final durationMinutes = _diffMinutes(start, end);
+
+        return BookingModel(
+          id: map['id']?.toString() ??
+              'rpc-${map['court_id']}-${map['start_time']}-${map['end_time']}',
+          courtId: map['court_id'] as String,
+          userId: '',
+          bookingDate: bookingDate,
+          startTime: start,
+          endTime: end,
+          durationMinutes: durationMinutes,
+          status: map['status'] as String? ?? 'confirmed',
+          paymentMethod: 'onsite',
+          paymentStatus: 'unpaid',
+          totalPrice: 0,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          racketRentalCount: 0,
+          racketRentalPrice: 0,
+          playerName: null,
+          playerPhone: null,
+          notes: null,
+          cancelledAt: null,
+          cancellationReason: null,
+          courtName: null,
+        );
+      }).toList();
     } catch (e) {
       throw Exception('Greška pri učitavanju rezervacija: $e');
     }
+  }
+
+  int _diffMinutes(String startTime, String endTime) {
+    final startParts = startTime.split(':');
+    final endParts = endTime.split(':');
+    final startMinutes = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+    final endMinutes = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+    return endMinutes - startMinutes;
   }
 
   /// Create a new booking

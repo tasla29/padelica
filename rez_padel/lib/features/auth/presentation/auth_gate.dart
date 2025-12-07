@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_controller.dart';
 import 'auth_screen.dart';
 import '../../home/presentation/home_screen.dart';
+import '../../onboarding/onboarding_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -14,9 +16,12 @@ class AuthGate extends ConsumerStatefulWidget {
 }
 
 class _AuthGateState extends ConsumerState<AuthGate> {
+  bool? _hasCompletedOnboarding;
+
   @override
   void initState() {
     super.initState();
+    _checkOnboardingStatus();
     // Add a timeout failsafe - if loading takes too long, force a refresh
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
@@ -29,13 +34,36 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     });
   }
 
+  Future<void> _checkOnboardingStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final completed =
+        prefs.getBool(OnboardingScreen.onboardingCompleteKey) ?? false;
+    if (mounted) {
+      setState(() {
+        _hasCompletedOnboarding = completed;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Show loading while checking onboarding status
+    if (_hasCompletedOnboarding == null) {
+      return _buildLoadingScreen();
+    }
+
+    // Show onboarding if not completed
+    if (!_hasCompletedOnboarding!) {
+      return const OnboardingScreen();
+    }
+
     final authState = ref.watch(authControllerProvider);
 
     return authState.when(
       data: (user) {
-        debugPrint('✅ AuthGate: User state - ${user != null ? "Logged in" : "Logged out"}');
+        debugPrint(
+          '✅ AuthGate: User state - ${user != null ? "Logged in" : "Logged out"}',
+        );
         if (user != null) {
           return const HomeScreen();
         } else {
@@ -44,37 +72,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
       },
       loading: () {
         debugPrint('⏳ AuthGate: Loading...');
-        return Scaffold(
-          backgroundColor: AppColors.deepNavy,
-          body: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'PADEL SPACE',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: 2.0,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: 240,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: LinearProgressIndicator(
-                      minHeight: 8,
-                      backgroundColor: Colors.white24,
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.hotPink),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+        return _buildLoadingScreen();
       },
       error: (error, stack) {
         debugPrint('❌ AuthGate: Error - $error');
@@ -113,6 +111,42 @@ class _AuthGateState extends ConsumerState<AuthGate> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      backgroundColor: AppColors.deepNavy,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'PADEL SPACE',
+              style: GoogleFonts.montserrat(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: 2.0,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: 240,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  minHeight: 8,
+                  backgroundColor: Colors.white24,
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.hotPink,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

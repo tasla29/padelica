@@ -15,16 +15,16 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _isLogin = true;
   final _formKey = GlobalKey<FormState>();
-  
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  
+
   // Phone input state
   String _fullPhoneNumber = '';
-  
+
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
@@ -42,7 +42,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final controller = ref.read(authControllerProvider.notifier);
-    
+
     if (_isLogin) {
       await controller.signIn(
         email: _emailController.text.trim(),
@@ -60,6 +60,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _showEmailVerificationDialog(_emailController.text.trim());
       }
     }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    final controller = ref.read(authControllerProvider.notifier);
+    await controller.signInWithGoogle();
   }
 
   void _toggleAuthMode() {
@@ -80,7 +85,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           backgroundColor: Theme.of(context).colorScheme.surface,
           title: Text(
             'Potvrdi email',
-            style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w700),
+            style: GoogleFonts.montserrat(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           content: Text(
             'Poslali smo link za potvrdu na $email.\n\nOtvori mejl i klikni na link da završiš registraciju. '
@@ -99,7 +107,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               onPressed: () async {
                 Navigator.of(ctx).pop();
                 try {
-                  await ref.read(authControllerProvider.notifier).resendConfirmationEmail(email);
+                  await ref
+                      .read(authControllerProvider.notifier)
+                      .resendConfirmationEmail(email);
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -124,7 +134,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               },
               child: Text(
                 'Pošalji ponovo',
-                style: GoogleFonts.montserrat(fontSize: 13, fontWeight: FontWeight.w600),
+                style: GoogleFonts.montserrat(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -176,13 +189,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       children: [
                         Text(
                           _isLogin ? 'Prijavi se' : 'Registruj se',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontSize: 20,
-                              ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.headlineSmall?.copyWith(fontSize: 20),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
-                        
+
                         if (!_isLogin) ...[
                           Row(
                             children: [
@@ -192,12 +205,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                   style: GoogleFonts.montserrat(fontSize: 12),
                                   decoration: InputDecoration(
                                     labelText: 'Ime',
-                                    prefixIcon: const Icon(Icons.person_outline),
-                                    labelStyle: GoogleFonts.montserrat(fontSize: 12),
-                                    hintStyle: GoogleFonts.montserrat(fontSize: 12),
+                                    prefixIcon: const Icon(
+                                      Icons.person_outline,
+                                    ),
+                                    labelStyle: GoogleFonts.montserrat(
+                                      fontSize: 12,
+                                    ),
+                                    hintStyle: GoogleFonts.montserrat(
+                                      fontSize: 12,
+                                    ),
                                   ),
-                                  validator: (value) =>
-                                      value?.isEmpty ?? true ? 'Obavezno polje' : null,
+                                  validator: (value) => value?.isEmpty ?? true
+                                      ? 'Obavezno polje'
+                                      : null,
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -207,18 +227,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                   style: GoogleFonts.montserrat(fontSize: 12),
                                   decoration: InputDecoration(
                                     labelText: 'Prezime',
-                                    prefixIcon: const Icon(Icons.person_outline),
-                                    labelStyle: GoogleFonts.montserrat(fontSize: 12),
-                                    hintStyle: GoogleFonts.montserrat(fontSize: 12),
+                                    prefixIcon: const Icon(
+                                      Icons.person_outline,
+                                    ),
+                                    labelStyle: GoogleFonts.montserrat(
+                                      fontSize: 12,
+                                    ),
+                                    hintStyle: GoogleFonts.montserrat(
+                                      fontSize: 12,
+                                    ),
                                   ),
-                                  validator: (value) =>
-                                      value?.isEmpty ?? true ? 'Obavezno polje' : null,
+                                  validator: (value) => value?.isEmpty ?? true
+                                      ? 'Obavezno polje'
+                                      : null,
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          
+
                           // Split Phone Input
                           SplitPhoneInputWidget(
                             onChanged: (countryCode, phoneNumber) {
@@ -261,9 +288,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _isPasswordVisible 
-                                  ? Icons.visibility // Uncrossed when visible
-                                  : Icons.visibility_off // Crossed when hidden
+                                _isPasswordVisible
+                                    ? Icons
+                                          .visibility // Uncrossed when visible
+                                    : Icons
+                                          .visibility_off, // Crossed when hidden
                               ),
                               onPressed: () {
                                 setState(() {
@@ -277,7 +306,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               ? 'Min 6 karaktera'
                               : null,
                         ),
-                        
+
                         if (!_isLogin) ...[
                           const SizedBox(height: 16),
                           TextFormField(
@@ -290,20 +319,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _isConfirmPasswordVisible 
-                                    ? Icons.visibility // Uncrossed when visible
-                                    : Icons.visibility_off // Crossed when hidden
+                                  _isConfirmPasswordVisible
+                                      ? Icons
+                                            .visibility // Uncrossed when visible
+                                      : Icons
+                                            .visibility_off, // Crossed when hidden
                                 ),
                                 onPressed: () {
                                   setState(() {
-                                    _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                                    _isConfirmPasswordVisible =
+                                        !_isConfirmPasswordVisible;
                                   });
                                 },
                               ),
                             ),
                             obscureText: !_isConfirmPasswordVisible,
                             validator: (value) {
-                              if (value == null || value.isEmpty) return 'Obavezno polje';
+                              if (value == null || value.isEmpty)
+                                return 'Obavezno polje';
                               if (value != _passwordController.text) {
                                 return 'Lozinke se ne poklapaju';
                               }
@@ -311,9 +344,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             },
                           ),
                         ],
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         ElevatedButton(
                           onPressed: isLoading ? null : _submit,
                           child: isLoading
@@ -335,6 +368,49 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                 ? 'Nemaš nalog? Registruj se'
                                 : 'Imaš nalog? Prijavi se',
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8.0,
+                              ),
+                              child: Text(
+                                'ili',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: isLoading ? null : _signInWithGoogle,
+                          icon: Icon(
+                            Icons.g_mobiledata,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 28,
+                          ),
+                          label: isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  'Nastavi sa Google',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                         ),
                       ],
                     ),

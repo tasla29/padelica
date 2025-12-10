@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/constants/app_constants.dart';
 import '../domain/user_model.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -13,7 +16,10 @@ class AuthRepository {
 
   Stream<AuthState> get onAuthStateChange => _supabase.auth.onAuthStateChange;
 
-  Future<AuthResponse> signInWithEmailAndPassword(String email, String password) async {
+  Future<AuthResponse> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     return await _supabase.auth.signInWithPassword(
       email: email,
       password: password,
@@ -30,19 +36,42 @@ class AuthRepository {
     return await _supabase.auth.signUp(
       email: email,
       password: password,
-      data: {
-        'first_name': firstName,
-        'last_name': lastName,
-        'phone': phone,
-      },
+      data: {'first_name': firstName, 'last_name': lastName, 'phone': phone},
+    );
+  }
+
+  Future<void> signInWithGoogle() async {
+    if (kIsWeb) {
+      await _supabase.auth.signInWithOAuth(OAuthProvider.google);
+      return;
+    }
+
+    final googleSignIn = GoogleSignIn(
+      // clientId (iOS) and serverClientId (web) both provided to ensure tokens
+      clientId: AppConstants.googleIosClientId,
+      serverClientId: AppConstants.googleWebClientId,
+    );
+    final googleUser = await googleSignIn.signIn();
+
+    if (googleUser == null) {
+      throw AuthException('Korisnik je otkazao Google prijavu');
+    }
+
+    final googleAuth = await googleUser.authentication;
+
+    if (googleAuth.idToken == null) {
+      throw AuthException('Google prijava nije vratila token');
+    }
+
+    await _supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: googleAuth.idToken!,
+      accessToken: googleAuth.accessToken,
     );
   }
 
   Future<void> resendEmailConfirmation(String email) async {
-    await _supabase.auth.resend(
-      type: OtpType.signup,
-      email: email,
-    );
+    await _supabase.auth.resend(type: OtpType.signup, email: email);
   }
 
   Future<void> updateEmail(String email) async {
@@ -59,12 +88,15 @@ class AuthRepository {
     required String lastName,
     required String phone,
   }) async {
-    await _supabase.from('users').update({
-      'first_name': firstName,
-      'last_name': lastName,
-      'phone': phone,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', userId);
+    await _supabase
+        .from('users')
+        .update({
+          'first_name': firstName,
+          'last_name': lastName,
+          'phone': phone,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', userId);
   }
 
   Future<void> signOut() async {
@@ -83,7 +115,7 @@ class AuthRepository {
     try {
       // Try fetching profile with timeout and retry logic
       final profile = await _fetchProfileWithRetry(user.id, maxAttempts: 3);
-      
+
       if (profile == null) {
         print('⚠️ AuthRepository: Profile not found after retries');
         return null;
@@ -104,7 +136,7 @@ class AuthRepository {
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         print('📍 Attempt $attempt/$maxAttempts to fetch profile...');
-        
+
         final response = await _supabase
             .from('users')
             .select()

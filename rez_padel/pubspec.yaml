@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   
   # Supabase Flutter SDK
-  supabase_flutter: ^2.8.0
+  supabase_flutter: ^2.10.3
   
   # State Management
   flutter_riverpod: ^2.6.1
@@ -48,6 +48,8 @@ dependencies:
   latlong2: ^0.9.1
   flutter_confetti: ^0.5.1
   shared_preferences: ^2.2.2
+  google_sign_in: ^6.2.1
+  
 
 dev_dependencies:
   flutter_test:

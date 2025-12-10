@@ -57,15 +57,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _showIntro = false;
         _currentPage = 0;
       });
-      _pageController.jumpToPage(0);
+      // Wait for PageView to attach before jumping to page 0
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pageController.hasClients) {
+          _pageController.jumpToPage(0);
+        }
+      });
       return;
     }
 
     if (_currentPage < _totalCapabilityPages - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
+      if (_pageController.hasClients) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+        );
+      }
     } else {
       _completeOnboarding();
     }

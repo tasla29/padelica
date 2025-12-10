@@ -4,9 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/auth_repository.dart';
 import '../domain/user_model.dart';
 
-final authControllerProvider = AsyncNotifierProvider<AuthController, UserModel?>(() {
-  return AuthController();
-});
+final authControllerProvider =
+    AsyncNotifierProvider<AuthController, UserModel?>(() {
+      return AuthController();
+    });
 
 class AuthController extends AsyncNotifier<UserModel?> {
   StreamSubscription<AuthState>? _authSubscription;
@@ -14,11 +15,11 @@ class AuthController extends AsyncNotifier<UserModel?> {
   @override
   FutureOr<UserModel?> build() async {
     final repository = ref.watch(authRepositoryProvider);
-    
+
     // Set up auth state listener only once
     _authSubscription ??= repository.onAuthStateChange.listen((data) {
       final AuthChangeEvent event = data.event;
-      if (event == AuthChangeEvent.signedIn || 
+      if (event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.tokenRefreshed) {
         // Only refresh if we're not already loading
         if (!state.isLoading) {
@@ -28,19 +29,21 @@ class AuthController extends AsyncNotifier<UserModel?> {
         state = const AsyncValue.data(null);
       }
     });
-    
+
     ref.onDispose(() {
       _authSubscription?.cancel();
       _authSubscription = null;
     });
-    
+
     return await repository.getCurrentUser();
   }
 
   Future<void> signIn({required String email, required String password}) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      await ref.read(authRepositoryProvider).signInWithEmailAndPassword(email, password);
+      await ref
+          .read(authRepositoryProvider)
+          .signInWithEmailAndPassword(email, password);
       final user = await ref.read(authRepositoryProvider).getCurrentUser();
       return user;
     });
@@ -56,13 +59,15 @@ class AuthController extends AsyncNotifier<UserModel?> {
   }) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      await ref.read(authRepositoryProvider).signUpWithEmailAndPassword(
-        email: email,
-        password: password,
-        firstName: firstName,
-        lastName: lastName,
-        phone: phone,
-      );
+      await ref
+          .read(authRepositoryProvider)
+          .signUpWithEmailAndPassword(
+            email: email,
+            password: password,
+            firstName: firstName,
+            lastName: lastName,
+            phone: phone,
+          );
       final user = await ref.read(authRepositoryProvider).getCurrentUser();
       return user;
     });
@@ -71,6 +76,15 @@ class AuthController extends AsyncNotifier<UserModel?> {
 
   Future<void> resendConfirmationEmail(String email) async {
     await ref.read(authRepositoryProvider).resendEmailConfirmation(email);
+  }
+
+  Future<void> signInWithGoogle() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await ref.read(authRepositoryProvider).signInWithGoogle();
+      final user = await ref.read(authRepositoryProvider).getCurrentUser();
+      return user;
+    });
   }
 
   Future<void> signOut() async {

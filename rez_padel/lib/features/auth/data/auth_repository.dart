@@ -70,6 +70,10 @@ class AuthRepository {
     );
   }
 
+  Future<void> signInWithFacebook() async {
+    await _supabase.auth.signInWithOAuth(OAuthProvider.facebook);
+  }
+
   Future<void> resendEmailConfirmation(String email) async {
     await _supabase.auth.resend(type: OtpType.signup, email: email);
   }

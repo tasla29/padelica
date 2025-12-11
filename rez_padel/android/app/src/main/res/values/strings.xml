@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Padel Space</string>
+    <string name="facebook_app_id">1424963342962591</string>  <!-- Your App ID -->
+    <string name="facebook_client_token">cbb5a3b30a5744410dcc40653c680324</string>  <!-- Your Client Token -->
+</resources>

@@ -87,6 +87,15 @@ class AuthController extends AsyncNotifier<UserModel?> {
     });
   }
 
+  Future<void> signInWithFacebook() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await ref.read(authRepositoryProvider).signInWithFacebook();
+      final user = await ref.read(authRepositoryProvider).getCurrentUser();
+      return user;
+    });
+  }
+
   Future<void> signOut() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {

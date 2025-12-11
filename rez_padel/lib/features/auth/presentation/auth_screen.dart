@@ -67,6 +67,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     await controller.signInWithGoogle();
   }
 
+  Future<void> _signInWithFacebook() async {
+    final controller = ref.read(authControllerProvider.notifier);
+    await controller.signInWithFacebook();
+  }
+
   void _toggleAuthMode() {
     setState(() {
       _isLogin = !_isLogin;
@@ -406,6 +411,30 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                 )
                               : Text(
                                   'Nastavi sa Google',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: isLoading ? null : _signInWithFacebook,
+                          icon: Icon(
+                            Icons.facebook,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 24,
+                          ),
+                          label: isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  'Nastavi sa Facebook',
                                   style: GoogleFonts.montserrat(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,

@@ -96,6 +96,36 @@ class AuthController extends AsyncNotifier<UserModel?> {
     });
   }
 
+  Future<void> savePhone({
+    required String phone,
+    String? firstName,
+    String? lastName,
+  }) async {
+    final authUser = Supabase.instance.client.auth.currentUser;
+    if (authUser == null) {
+      state = AsyncValue.error(
+        'Nije pronađen autentifikovani korisnik',
+        StackTrace.current,
+      );
+      return;
+    }
+
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await ref
+          .read(authRepositoryProvider)
+          .upsertUserPhone(
+            userId: authUser.id,
+            email: authUser.email ?? '',
+            phone: phone,
+            firstName: firstName,
+            lastName: lastName,
+          );
+      final user = await ref.read(authRepositoryProvider).getCurrentUser();
+      return user;
+    });
+  }
+
   Future<void> signOut() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {

@@ -1,8 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/constants/app_constants.dart';
 import '../domain/user_model.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -41,37 +38,17 @@ class AuthRepository {
   }
 
   Future<void> signInWithGoogle() async {
-    if (kIsWeb) {
-      await _supabase.auth.signInWithOAuth(OAuthProvider.google);
-      return;
-    }
-
-    final googleSignIn = GoogleSignIn(
-      // clientId (iOS) and serverClientId (web) both provided to ensure tokens
-      clientId: AppConstants.googleIosClientId,
-      serverClientId: AppConstants.googleWebClientId,
-    );
-    final googleUser = await googleSignIn.signIn();
-
-    if (googleUser == null) {
-      throw AuthException('Korisnik je otkazao Google prijavu');
-    }
-
-    final googleAuth = await googleUser.authentication;
-
-    if (googleAuth.idToken == null) {
-      throw AuthException('Google prijava nije vratila token');
-    }
-
-    await _supabase.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: googleAuth.idToken!,
-      accessToken: googleAuth.accessToken,
+    await _supabase.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: 'https://rxicnsdrmbeajlxzhxjl.supabase.co/auth/v1/callback',
     );
   }
 
   Future<void> signInWithFacebook() async {
-    await _supabase.auth.signInWithOAuth(OAuthProvider.facebook);
+    await _supabase.auth.signInWithOAuth(
+      OAuthProvider.facebook,
+      redirectTo: 'https://rxicnsdrmbeajlxzhxjl.supabase.co/auth/v1/callback',
+    );
   }
 
   Future<void> resendEmailConfirmation(String email) async {
@@ -101,6 +78,30 @@ class AuthRepository {
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', userId);
+  }
+
+  Future<void> upsertUserPhone({
+    required String userId,
+    required String email,
+    required String phone,
+    String? firstName,
+    String? lastName,
+  }) async {
+    final payload = <String, dynamic>{
+      'id': userId,
+      'email': email,
+      'phone': phone,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    if (firstName != null && firstName.isNotEmpty) {
+      payload['first_name'] = firstName;
+    }
+    if (lastName != null && lastName.isNotEmpty) {
+      payload['last_name'] = lastName;
+    }
+
+    await _supabase.from('users').upsert(payload);
   }
 
   Future<void> signOut() async {

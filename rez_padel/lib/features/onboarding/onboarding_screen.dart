@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
-import '../auth/presentation/auth_screen.dart';
+import '../auth/presentation/auth_choice_screen.dart';
 
 /// Onboarding screen with logo intro and 3 capability pages
 class OnboardingScreen extends StatefulWidget {
@@ -84,9 +84,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     if (!mounted) return;
 
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthScreen()));
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
+    );
   }
 
   @override

@@ -10,6 +10,11 @@ final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
   return BookingRepository(ref.read(supabaseClientProvider));
 });
 
+final userBookingsProvider = FutureProvider<List<BookingModel>>((ref) async {
+  final repository = ref.watch(bookingRepositoryProvider);
+  return repository.getUserBookings();
+});
+
 class BookingRepository {
   final SupabaseClient _supabase;
 

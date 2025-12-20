@@ -8,6 +8,8 @@ import '../../profile/presentation/profile_screen.dart';
 import '../../profile/presentation/activity_screen.dart';
 import '../../bookings/data/booking_repository.dart';
 import '../../bookings/domain/booking_model.dart';
+import '../../about/presentation/about_screen.dart';
+import '../../contact/presentation/contact_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -107,9 +109,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const ProfileScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const ProfileScreen()),
             );
           },
           icon: const Icon(Icons.menu, color: Colors.white, size: 28),
@@ -135,31 +135,40 @@ class _HomeContent extends ConsumerWidget {
         ),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context, ref),
-                const SizedBox(height: 24),
-                // Upcoming Activities Section
-                const _UpcomingActivitiesSection(),
-                const SizedBox(height: 28),
-                // Section Title for Cards
-                Text(
-                  'Idemo na padel?',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.white,
-                    letterSpacing: 0.5,
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(userBookingsProvider);
+              // Wait for the provider to complete its next fetch
+              await ref.read(userBookingsProvider.future);
+            },
+            color: AppColors.hotPink,
+            backgroundColor: AppColors.cardNavy,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, ref),
+                  const SizedBox(height: 24),
+                  // Upcoming Activities Section
+                  const _UpcomingActivitiesSection(),
+                  const SizedBox(height: 28),
+                  // Section Title for Cards
+                  Text(
+                    'Idemo na padel?',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.white,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                // Action Cards Section
-                const _ActionCardsSection(),
-              ],
+                  const SizedBox(height: 16),
+                  // Action Cards Section
+                  const _ActionCardsSection(),
+                ],
+              ),
             ),
           ),
         ),
@@ -200,23 +209,15 @@ class _HomeContent extends ConsumerWidget {
 }
 
 /// Upcoming Activities Section with empty state
-final _upcomingBookingsProvider = FutureProvider<List<BookingModel>>((ref) async {
-  final repo = ref.read(bookingRepositoryProvider);
-  final bookings = await repo.getUserBookings(); // includes court name if joined
+final _upcomingBookingsProvider = FutureProvider<List<BookingModel>>((
+  ref,
+) async {
+  final bookings = await ref.watch(userBookingsProvider.future);
   final now = DateTime.now();
 
-  DateTime toDateTime(BookingModel b) {
-    final date = DateTime.parse(b.bookingDate);
-    final parts = b.startTime.split(':');
-    final h = int.parse(parts[0]);
-    final m = int.parse(parts[1]);
-    return DateTime(date.year, date.month, date.day, h, m);
-  }
-
-  final upcoming = bookings
-      .where((b) => (b.status == 'confirmed' || b.status == 'pending') && toDateTime(b).isAfter(now))
-      .toList()
-    ..sort((a, b) => toDateTime(a).compareTo(toDateTime(b)));
+  final upcoming =
+      bookings.where((b) => b.isActive && b.endDateTime.isAfter(now)).toList()
+        ..sort((a, b) => a.startDateTime.compareTo(b.startDateTime));
 
   return upcoming;
 });
@@ -274,17 +275,13 @@ class _UpcomingActivitiesSection extends ConsumerWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _BookingPreviewCard(
-                  booking: first,
-                ),
+                _BookingPreviewCard(booking: first),
                 const SizedBox(height: 12),
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const ActivityScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const ActivityScreen()),
                     );
                   },
                   child: Padding(
@@ -337,11 +334,7 @@ class _EmptyStateCard extends StatelessWidget {
               color: AppColors.deepNavy,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              icon,
-              color: Colors.white.withOpacity(0.5),
-              size: 24,
-            ),
+            child: Icon(icon, color: Colors.white.withOpacity(0.5), size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -377,9 +370,7 @@ class _EmptyStateCard extends StatelessWidget {
 class _BookingPreviewCard extends StatelessWidget {
   final BookingModel booking;
 
-  const _BookingPreviewCard({
-    required this.booking,
-  });
+  const _BookingPreviewCard({required this.booking});
 
   @override
   Widget build(BuildContext context) {
@@ -391,7 +382,7 @@ class _BookingPreviewCard extends StatelessWidget {
       'Četvrtak',
       'Petak',
       'Subota',
-      'Nedelja'
+      'Nedelja',
     ][parsedDate.weekday - 1];
     final monthNames = [
       'Jan',
@@ -405,7 +396,7 @@ class _BookingPreviewCard extends StatelessWidget {
       'Sep',
       'Okt',
       'Nov',
-      'Dec'
+      'Dec',
     ];
     final dateStr =
         '$weekday, ${parsedDate.day.toString().padLeft(2, '0')} ${monthNames[parsedDate.month - 1]} ${parsedDate.year}';
@@ -494,7 +485,7 @@ class _ActionCardsSection extends StatelessWidget {
         // Hero Card - Rezerviši termin
         const _HeroCard(),
         const SizedBox(height: 16),
-        // Bottom Grid - Turniri & Treninzi
+        // Grid - Turniri & Treninzi
         Row(
           children: [
             Expanded(
@@ -531,6 +522,46 @@ class _ActionCardsSection extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 20),
+        Divider(color: Colors.white.withOpacity(0.1), thickness: 1),
+        const SizedBox(height: 20),
+        // Grid - O nama & Kontakt
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                title: 'O nama',
+                subtitle: 'Upoznaj Padel Space',
+                imagePath: 'assets/images/illustration_about.png',
+                imageHeight: 80,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AboutScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _ActionCard(
+                title: 'Kontakt',
+                subtitle: 'Pronađi nas lako',
+                icon: Icons.contact_support_rounded,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ContactScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -547,9 +578,7 @@ class _HeroCard extends StatelessWidget {
         // Navigate to BookingsScreen
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const BookingsScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const BookingsScreen()),
         );
       },
       child: Container(
@@ -634,17 +663,22 @@ class _HeroCard extends StatelessWidget {
 class _ActionCard extends StatelessWidget {
   final String title;
   final String subtitle;
-  final String imagePath;
+  final String? imagePath;
+  final IconData? icon;
   final VoidCallback onTap;
   final double imageHeight;
 
   const _ActionCard({
     required this.title,
     required this.subtitle,
-    required this.imagePath,
+    this.imagePath,
+    this.icon,
     required this.onTap,
     this.imageHeight = 80,
-  });
+  }) : assert(
+         imagePath != null || icon != null,
+         'Either imagePath or icon must be provided',
+       );
 
   @override
   Widget build(BuildContext context) {
@@ -667,16 +701,27 @@ class _ActionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: Stack(
             children: [
-              // Illustration on the right
-              Positioned(
-                right: 0,
-                bottom: -10,
-                child: Image.asset(
-                  imagePath,
-                  height: imageHeight,
-                  fit: BoxFit.contain,
+              // Illustration or Icon on the right
+              if (imagePath != null)
+                Positioned(
+                  right: 0,
+                  bottom: -10,
+                  child: Image.asset(
+                    imagePath!,
+                    height: imageHeight,
+                    fit: BoxFit.contain,
+                  ),
+                )
+              else if (icon != null)
+                Positioned(
+                  right: -10,
+                  bottom: -10,
+                  child: Icon(
+                    icon,
+                    size: 80,
+                    color: AppColors.hotPink.withOpacity(0.35),
+                  ),
                 ),
-              ),
               // Content
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
@@ -712,4 +757,3 @@ class _ActionCard extends StatelessWidget {
     );
   }
 }
-

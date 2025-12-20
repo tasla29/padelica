@@ -18,11 +18,6 @@ class ActivityScreen extends ConsumerStatefulWidget {
 class _ActivityScreenState extends ConsumerState<ActivityScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  static final _userBookingsProvider = FutureProvider<List<BookingModel>>((
-    ref,
-  ) async {
-    return ref.read(bookingRepositoryProvider).getUserBookings();
-  });
 
   @override
   void initState() {
@@ -34,7 +29,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
     );
     // Always refresh bookings when entering this screen to pick up new reservations
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final _ = ref.refresh(_userBookingsProvider);
+      final _ = ref.refresh(userBookingsProvider);
     });
   }
 
@@ -46,7 +41,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
 
   @override
   Widget build(BuildContext context) {
-    final bookingsAsync = ref.watch(_userBookingsProvider);
+    final bookingsAsync = ref.watch(userBookingsProvider);
     return Scaffold(
       backgroundColor: AppColors.deepNavy,
       appBar: _buildAppBar(),
@@ -137,15 +132,12 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
       ),
       data: (bookings) {
         final now = DateTime.now();
-        DateTime toDateTime(BookingModel b) {
-          return DateTime.parse('${b.bookingDate} ${b.startTime}');
-        }
 
-        final upcoming = bookings.where((b) {
-          final dt = toDateTime(b);
-          final active = b.status == 'confirmed' || b.status == 'pending';
-          return active && dt.isAfter(now);
-        }).toList()..sort((a, b) => toDateTime(a).compareTo(toDateTime(b)));
+        final upcoming =
+            bookings
+                .where((b) => b.isActive && b.endDateTime.isAfter(now))
+                .toList()
+              ..sort((a, b) => a.startDateTime.compareTo(b.startDateTime));
 
         if (bookings.isEmpty) {
           return _buildEmptyState(
@@ -155,74 +147,110 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
           );
         }
 
-        return ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              'Nadolazeći mečevi',
-              style: GoogleFonts.montserrat(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (upcoming.isEmpty)
-              _buildEmptyState(
-                icon: Icons.calendar_today,
-                title: 'Nema nadolazećih mečeva',
-                subtitle: 'Kada rezervišeš termin, pojaviće se ovde.',
-              )
-            else
-              ...upcoming.map(_buildBookingCard),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        PlayedMatchesScreen(bookings: bookings),
-                  ),
-                );
-              },
-              child: Text(
-                'Prikaži sve odigrane mečeve',
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(userBookingsProvider);
+            await ref.read(userBookingsProvider.future);
+          },
+          color: AppColors.hotPink,
+          backgroundColor: AppColors.cardNavy,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(24),
+            children: [
+              Text(
+                'Nadolazeći mečevi',
                 style: GoogleFonts.montserrat(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.hotPink,
-                  decoration: TextDecoration.underline,
+                  color: Colors.white,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              if (upcoming.isEmpty)
+                _buildEmptyState(
+                  icon: Icons.calendar_today,
+                  title: 'Nema nadolazećih mečeva',
+                  subtitle: 'Kada rezervišeš termin, pojaviće se ovde.',
+                )
+              else
+                ...upcoming.map(_buildBookingCard),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PlayedMatchesScreen(bookings: bookings),
+                    ),
+                  );
+                },
+                child: Text(
+                  'Prikaži sve odigrane mečeve',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.hotPink,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
   Widget _buildTrainingsTab() {
-    return _buildEmptyState(
-      icon: Icons.school,
-      title: 'Treninzi - dolaze uskoro!',
-      subtitle: 'Uskoro ćeš moći da pratiš svoje treninge i časove ovde.',
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(userBookingsProvider);
+        await ref.read(userBookingsProvider.future);
+      },
+      color: AppColors.hotPink,
+      backgroundColor: AppColors.cardNavy,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: _buildEmptyState(
+            icon: Icons.school,
+            title: 'Treninzi - dolaze uskoro!',
+            subtitle: 'Uskoro ćeš moći da pratiš svoje treninge i časove ovde.',
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildTournamentsTab() {
-    return _buildEmptyState(
-      icon: Icons.emoji_events,
-      title: 'Turniri - dolaze uskoro!',
-      subtitle: 'Uskoro ćeš moći da pratiš i prijavljuješ turnire ovde.',
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(userBookingsProvider);
+        await ref.read(userBookingsProvider.future);
+      },
+      color: AppColors.hotPink,
+      backgroundColor: AppColors.cardNavy,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: _buildEmptyState(
+            icon: Icons.emoji_events,
+            title: 'Turniri - dolaze uskoro!',
+            subtitle: 'Uskoro ćeš moći da pratiš i prijavljuješ turnire ovde.',
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildBookingCard(BookingModel booking) {
     final now = DateTime.now();
-    final dt = DateTime.parse('${booking.bookingDate} ${booking.startTime}');
     final isUpcoming =
-        dt.isAfter(now) &&
+        booking.endDateTime.isAfter(now) &&
         (booking.status == 'confirmed' || booking.status == 'pending');
     final isCompleted = !isUpcoming && booking.status == 'completed';
     final duration = booking.durationMinutes;
@@ -396,27 +424,26 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
   }
 }
 
-class PlayedMatchesScreen extends StatelessWidget {
+class PlayedMatchesScreen extends ConsumerWidget {
   final List<BookingModel> bookings;
 
   const PlayedMatchesScreen({super.key, required this.bookings});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
-    DateTime toDateTime(BookingModel b) =>
-        DateTime.parse('${b.bookingDate} ${b.startTime}');
 
-    final upcoming = bookings.where((b) {
-      final dt = toDateTime(b);
-      final active = b.status == 'confirmed' || b.status == 'pending';
-      return active && dt.isAfter(now);
-    }).toList()..sort((a, b) => toDateTime(a).compareTo(toDateTime(b)));
+    final upcoming =
+        bookings.where((b) => b.isActive && b.endDateTime.isAfter(now)).toList()
+          ..sort((a, b) => a.startDateTime.compareTo(b.startDateTime));
 
-    final past = bookings.where((b) {
-      final dt = toDateTime(b);
-      return dt.isBefore(now) && b.status == 'completed';
-    }).toList()..sort((a, b) => toDateTime(b).compareTo(toDateTime(a)));
+    final past =
+        bookings
+            .where(
+              (b) => b.startDateTime.isBefore(now) && b.status == 'completed',
+            )
+            .toList()
+          ..sort((a, b) => b.startDateTime.compareTo(a.startDateTime));
 
     return Scaffold(
       backgroundColor: AppColors.deepNavy,
@@ -438,45 +465,54 @@ class PlayedMatchesScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text(
-            'Nadolazeći mečevi',
-            style: GoogleFonts.montserrat(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(userBookingsProvider);
+          await ref.read(userBookingsProvider.future);
+        },
+        color: AppColors.hotPink,
+        backgroundColor: AppColors.cardNavy,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text(
+              'Nadolazeći mečevi',
+              style: GoogleFonts.montserrat(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          if (upcoming.isEmpty)
-            _buildInlineEmptyState(
-              icon: Icons.calendar_today,
-              title: 'Nema nadolazećih mečeva',
-              subtitle: 'Kada rezervišeš termin, pojaviće se ovde.',
-            )
-          else
-            ...upcoming.map((b) => _buildCompactCard(b)),
-          const SizedBox(height: 24),
-          Text(
-            'Odigrani mečevi (poslednjih 12 meseci)',
-            style: GoogleFonts.montserrat(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
+            const SizedBox(height: 12),
+            if (upcoming.isEmpty)
+              _buildInlineEmptyState(
+                icon: Icons.calendar_today,
+                title: 'Nema nadolazećih mečeva',
+                subtitle: 'Kada rezervišeš termin, pojaviće se ovde.',
+              )
+            else
+              ...upcoming.map((b) => _buildCompactCard(b)),
+            const SizedBox(height: 24),
+            Text(
+              'Odigrani mečevi (poslednjih 12 meseci)',
+              style: GoogleFonts.montserrat(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          if (past.isEmpty)
-            _buildInlineEmptyState(
-              icon: Icons.history,
-              title: 'Nema odigranih mečeva',
-              subtitle: 'Kada odigraš meč, pojaviće se ovde.',
-            )
-          else
-            ...past.map((b) => _buildCompactCard(b)),
-        ],
+            const SizedBox(height: 12),
+            if (past.isEmpty)
+              _buildInlineEmptyState(
+                icon: Icons.history,
+                title: 'Nema odigranih mečeva',
+                subtitle: 'Kada odigraš meč, pojaviće se ovde.',
+              )
+            else
+              ...past.map((b) => _buildCompactCard(b)),
+          ],
+        ),
       ),
     );
   }

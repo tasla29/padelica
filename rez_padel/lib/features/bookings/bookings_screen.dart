@@ -552,6 +552,8 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
         onBookingCreated: () {
           // Refresh courts to update availability
           ref.invalidate(courtsProvider);
+          // Refresh user bookings for Home/Activity screens
+          ref.invalidate(userBookingsProvider);
         },
       ),
     );
@@ -643,20 +645,42 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
           ),
           child: ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Scrollable content (including date selector)
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Date selector section (now scrollable with rest of content)
-                        _buildDateSelector(),
-
-                        const SizedBox(height: 24),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(courtsProvider);
+                ref.invalidate(centerSettingsProvider);
+                setState(() {
+                  _availabilityBySlot = {};
+                  _availabilityDateKey = null;
+                  _bookingsByCourt = {};
+                  _bookingsDateKey = null;
+                  _courtAvailability = {};
+                  _courtAvailabilityKey = null;
+                });
+                // Wait for core data to reload
+                await Future.wait([
+                  ref.read(courtsProvider.future),
+                  ref.read(centerSettingsProvider.future),
+                ]);
+                // Availability for current date will be triggered by build() -> _loadAvailabilityForSelectedDate
+              },
+              color: AppColors.hotPink,
+              backgroundColor: AppColors.cardNavy,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Scrollable content (including date selector)
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Date selector section (now scrollable with rest of content)
+                          _buildDateSelector(),
+  
+                          const SizedBox(height: 24),
                         // Time Section Title
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -781,15 +805,14 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                     ),
                   ),
                 ),
-                // Book button (Removed fixed bottom button)
-                // _buildBookButton(),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(

@@ -39,38 +39,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.deepNavy,
       appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Profile Header Section
-            _buildProfileHeader(
-              displayName: displayName,
-              displayRole: displayRole,
-              displayInitials: displayInitials,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Your Account Section
-            _buildAccountSection(),
-
-            const SizedBox(height: 32),
-
-            // Support Section
-            _buildSupportSection(),
-
-            const SizedBox(height: 32),
-
-            // Legal Information Section
-            _buildLegalSection(),
-
-            const SizedBox(height: 32),
-
-            // Logout Section
-            _buildLogoutSection(),
-          ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(authControllerProvider);
+          await ref.read(authControllerProvider.future);
+        },
+        color: AppColors.hotPink,
+        backgroundColor: AppColors.cardNavy,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Profile Header Section
+              _buildProfileHeader(
+                displayName: displayName,
+                displayRole: displayRole,
+                displayInitials: displayInitials,
+              ),
+  
+              const SizedBox(height: 32),
+  
+              // Your Account Section
+              _buildAccountSection(),
+  
+              const SizedBox(height: 32),
+  
+              // Support Section
+              _buildSupportSection(),
+  
+              const SizedBox(height: 32),
+  
+              // Legal Information Section
+              _buildLegalSection(),
+  
+              const SizedBox(height: 32),
+  
+              // Logout Section
+              _buildLogoutSection(),
+            ],
+          ),
         ),
       ),
     );

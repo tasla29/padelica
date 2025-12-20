@@ -18,14 +18,20 @@ class ActivityScreen extends ConsumerStatefulWidget {
 class _ActivityScreenState extends ConsumerState<ActivityScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  static final _userBookingsProvider = FutureProvider<List<BookingModel>>((ref) async {
+  static final _userBookingsProvider = FutureProvider<List<BookingModel>>((
+    ref,
+  ) async {
     return ref.read(bookingRepositoryProvider).getUserBookings();
   });
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this, initialIndex: widget.initialTabIndex);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTabIndex,
+    );
     // Always refresh bookings when entering this screen to pick up new reservations
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final _ = ref.refresh(_userBookingsProvider);
@@ -139,8 +145,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
           final dt = toDateTime(b);
           final active = b.status == 'confirmed' || b.status == 'pending';
           return active && dt.isAfter(now);
-        }).toList()
-          ..sort((a, b) => toDateTime(a).compareTo(toDateTime(b)));
+        }).toList()..sort((a, b) => toDateTime(a).compareTo(toDateTime(b)));
 
         if (bookings.isEmpty) {
           return _buildEmptyState(
@@ -176,9 +181,8 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PlayedMatchesScreen(
-                      bookings: bookings,
-                    ),
+                    builder: (context) =>
+                        PlayedMatchesScreen(bookings: bookings),
                   ),
                 );
               },
@@ -214,11 +218,12 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
     );
   }
 
-
   Widget _buildBookingCard(BookingModel booking) {
     final now = DateTime.now();
     final dt = DateTime.parse('${booking.bookingDate} ${booking.startTime}');
-    final isUpcoming = dt.isAfter(now) && (booking.status == 'confirmed' || booking.status == 'pending');
+    final isUpcoming =
+        dt.isAfter(now) &&
+        (booking.status == 'confirmed' || booking.status == 'pending');
     final isCompleted = !isUpcoming && booking.status == 'completed';
     final duration = booking.durationMinutes;
     final price = booking.totalPrice.toInt();
@@ -239,11 +244,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: 16,
-                    color: Colors.white60,
-                  ),
+                  Icon(Icons.calendar_today, size: 16, color: Colors.white60),
                   const SizedBox(width: 8),
                   Text(
                     booking.getFormattedDate(),
@@ -254,11 +255,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Icon(
-                    Icons.access_time,
-                    size: 16,
-                    color: Colors.white60,
-                  ),
+                  Icon(Icons.access_time, size: 16, color: Colors.white60),
                   const SizedBox(width: 8),
                   Text(
                     booking.getFormattedTime(),
@@ -271,32 +268,29 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isCompleted
                       ? Colors.green.withOpacity(0.15)
                       : isUpcoming
-                          ? AppColors.cardNavy
-                          : Colors.red.withOpacity(0.2),
+                      ? AppColors.cardNavy
+                      : Colors.red.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   isCompleted
                       ? 'Završeno'
                       : isUpcoming
-                          ? 'Nadolazeći'
-                          : 'Otkazano',
+                      ? 'Nadolazeći'
+                      : 'Otkazano',
                   style: GoogleFonts.montserrat(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: isCompleted
                         ? Colors.white
                         : isUpcoming
-                            ? Colors.white
-                            : Colors.white,
+                        ? Colors.white
+                        : Colors.white,
                   ),
                 ),
               ),
@@ -305,11 +299,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(
-                Icons.sports_tennis,
-                size: 20,
-                color: Colors.white70,
-              ),
+              Icon(Icons.sports_tennis, size: 20, color: Colors.white70),
               const SizedBox(width: 8),
               Text(
                 courtName,
@@ -327,11 +317,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.timer,
-                    size: 16,
-                    color: Colors.white60,
-                  ),
+                  Icon(Icons.timer, size: 16, color: Colors.white60),
                   const SizedBox(width: 8),
                   Text(
                     '$duration min',
@@ -342,11 +328,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Icon(
-                    Icons.payment,
-                    size: 16,
-                    color: Colors.white60,
-                  ),
+                  Icon(Icons.payment, size: 16, color: Colors.white60),
                   const SizedBox(width: 8),
                   Text(
                     '$price RSD',
@@ -358,22 +340,12 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.cardNavy,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  booking.paymentMethod,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white70,
-                  ),
+              Text(
+                booking.paymentMethod == 'onsite' ? 'Keš' : 'Kartica',
+                style: GoogleFonts.montserrat(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white70,
                 ),
               ),
             ],
@@ -384,7 +356,6 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
   }
 
   // Note: detailed cards for trainings/turniri removed while placeholders are shown.
-
 
   Widget _buildEmptyState({
     required IconData icon,
@@ -397,11 +368,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 64,
-              color: Colors.white30,
-            ),
+            Icon(icon, size: 64, color: Colors.white30),
             const SizedBox(height: 24),
             Text(
               title,
@@ -427,7 +394,6 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen>
       ),
     );
   }
-
 }
 
 class PlayedMatchesScreen extends StatelessWidget {
@@ -438,20 +404,19 @@ class PlayedMatchesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    DateTime toDateTime(BookingModel b) => DateTime.parse('${b.bookingDate} ${b.startTime}');
+    DateTime toDateTime(BookingModel b) =>
+        DateTime.parse('${b.bookingDate} ${b.startTime}');
 
     final upcoming = bookings.where((b) {
       final dt = toDateTime(b);
       final active = b.status == 'confirmed' || b.status == 'pending';
       return active && dt.isAfter(now);
-    }).toList()
-      ..sort((a, b) => toDateTime(a).compareTo(toDateTime(b)));
+    }).toList()..sort((a, b) => toDateTime(a).compareTo(toDateTime(b)));
 
     final past = bookings.where((b) {
       final dt = toDateTime(b);
       return dt.isBefore(now) && b.status == 'completed';
-    }).toList()
-      ..sort((a, b) => toDateTime(b).compareTo(toDateTime(a)));
+    }).toList()..sort((a, b) => toDateTime(b).compareTo(toDateTime(a)));
 
     return Scaffold(
       backgroundColor: AppColors.deepNavy,
@@ -522,7 +487,9 @@ class PlayedMatchesScreen extends StatelessWidget {
     final courtName = booking.courtName ?? 'Teren';
     final now = DateTime.now();
     final dt = DateTime.parse('${booking.bookingDate} ${booking.startTime}');
-    final isUpcoming = dt.isAfter(now) && (booking.status == 'confirmed' || booking.status == 'pending');
+    final isUpcoming =
+        dt.isAfter(now) &&
+        (booking.status == 'confirmed' || booking.status == 'pending');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -565,7 +532,9 @@ class PlayedMatchesScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isUpcoming ? AppColors.cardNavy : Colors.green.withOpacity(0.2),
+                  color: isUpcoming
+                      ? AppColors.cardNavy
+                      : Colors.green.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -610,6 +579,15 @@ class PlayedMatchesScreen extends StatelessWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                booking.paymentMethod == 'onsite' ? 'Kes' : 'Kartica',
+                style: GoogleFonts.montserrat(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white70,
                 ),
               ),
             ],
@@ -658,4 +636,3 @@ class PlayedMatchesScreen extends StatelessWidget {
     );
   }
 }
-

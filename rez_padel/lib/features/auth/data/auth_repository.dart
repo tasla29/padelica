@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../domain/user_model.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -36,18 +37,68 @@ class AuthRepository {
       data: {'first_name': firstName, 'last_name': lastName, 'phone': phone},
     );
   }
-
+  
   Future<void> signInWithGoogle() async {
-    await _supabase.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: 'https://rxicnsdrmbeajlxzhxjl.supabase.co/auth/v1/callback',
-    );
+    try {
+      print('🔵 Starting Google Sign-In...');
+
+      /// Web Client ID that you registered with Google Cloud.
+      const webClientId =
+          '708748381588-qrgnpr9t4smvmee7c5cfvt9m7n8v9epc.apps.googleusercontent.com';
+
+      /// iOS Client ID that you registered with Google Cloud.
+      const iosClientId =
+          '708748381588-l056gf0a08874npk77r0liqe9iqvl2na.apps.googleusercontent.com';
+
+      final scopes = ['email', 'profile'];
+      final googleSignIn = GoogleSignIn.instance;
+
+      print('🔵 Initializing GoogleSignIn...');
+      await googleSignIn.initialize(
+        serverClientId: webClientId,
+        clientId: iosClientId,
+      );
+
+      print('🔵 Attempting authentication...');
+      // Use authenticate() instead of attemptLightweightAuthentication() for the first sign-in
+      final googleUser = await googleSignIn.authenticate();
+
+      print('🔵 Google user authenticated: ${googleUser.email}');
+
+      /// Authorization is required to obtain the access token with the appropriate scopes for Supabase authentication,
+      /// while also granting permission to access user information.
+      print('🔵 Getting authorization for scopes...');
+      final authorization =
+          await googleUser.authorizationClient.authorizationForScopes(scopes) ??
+          await googleUser.authorizationClient.authorizeScopes(scopes);
+
+      print('🔵 Getting ID token...');
+      final idToken = googleUser.authentication.idToken;
+
+      if (idToken == null) {
+        print('❌ ID token is null');
+        throw Exception('No ID Token found.');
+      }
+
+      print('🔵 Signing in with Supabase...');
+      await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: authorization.accessToken,
+      );
+
+      print('✅ Google Sign-In successful!');
+    } catch (e, stackTrace) {
+      print('❌ Google Sign-In error: $e');
+      print('Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   Future<void> signInWithFacebook() async {
     await _supabase.auth.signInWithOAuth(
       OAuthProvider.facebook,
-      redirectTo: 'https://rxicnsdrmbeajlxzhxjl.supabase.co/auth/v1/callback',
+      redirectTo: 'rezpadel://auth/callback',
     );
   }
 

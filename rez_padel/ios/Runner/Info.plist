@@ -45,44 +45,40 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<!-- Google Sign-in Section -->
+	
+	<!-- URL Schemes for OAuth and Deep Linking -->
 	<key>CFBundleURLTypes</key>
 	<array>
-	<dict>
-		<key>CFBundleTypeRole</key>
-		<string>Editor</string>
-		<key>CFBundleURLSchemes</key>
-		<array>
-		<string>com.googleusercontent.apps.708748381588-l056gf0a08874npk77r0liqe9iqvl2na</string>
-		</array>
-	</dict>
+		<!-- Google Sign-in -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.708748381588-l056gf0a08874npk77r0liqe9iqvl2na</string>
+			</array>
+		</dict>
+		<!-- Supabase OAuth -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>rezPadel</string>
+			</array>
+		</dict>
+		<!-- Facebook Sign-in -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fb1424963342962591</string>
+			</array>
+		</dict>
 	</array>
-	<!-- End of the Google Sign-in Section -->
-
-	<!-- Supabase OAuth URL Scheme Handler -->
-	<key>CFBundleURLTypes</key>
-	<array>
-	<dict>
-		<key>CFBundleTypeRole</key>
-		<string>Editor</string>
-		<key>CFBundleURLSchemes</key>
-		<array>
-		<string>rezPadel</string>
-		</array>
-	</dict>
-	</array>
-	<!-- End of Supabase OAuth URL Scheme Handler -->
-
-	<!-- Facebook Sign-in Section -->
-	<key>CFBundleURLTypes</key>
-	<array>
-	<dict>
-	<key>CFBundleURLSchemes</key>
-	<array>
-		<string>fb1424963342962591</string>
-	</array>
-	</dict>
-	</array>
+	
+	<!-- Facebook Configuration -->
 	<key>FacebookAppID</key>
 	<string>1424963342962591</string>
 	<key>FacebookClientToken</key>
@@ -92,10 +88,9 @@
 
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
-	<string>fbapi</string>
-	<string>fb-messenger-share-api</string>
+		<string>fbapi</string>
+		<string>fb-messenger-share-api</string>
 	</array>
-	<!-- End of the Facebook Sign-in Section -->
 </dict>
 </plist>
 

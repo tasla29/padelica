@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_controller.dart';
 import 'auth_choice_screen.dart';
-import 'phone_capture_screen.dart';
+import 'oauth_phone_collection_screen.dart';
 import '../../home/presentation/home_screen.dart';
 import '../../onboarding/onboarding_screen.dart';
 import '../../../core/theme/app_colors.dart';
@@ -66,8 +66,9 @@ class _AuthGateState extends ConsumerState<AuthGate> {
           '✅ AuthGate: User state - ${user != null ? "Logged in" : "Logged out"}',
         );
         if (user != null) {
+          // Require phone number for all users before proceeding to app
           if (user.phone.isEmpty) {
-            return PhoneCaptureScreen(user: user);
+            return OAuthPhoneCollectionScreen(user: user);
           }
           return const HomeScreen();
         } else {

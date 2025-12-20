@@ -114,13 +114,33 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     return hour * 60 + minute;
   }
 
-  bool _slotFitsDuration(String timeSlot, int durationMinutes) {
+  bool _isSlotFitsDuration(String timeSlot, int durationMinutes) {
     final parts = timeSlot.split(':');
     final startHour = int.parse(parts[0]);
     final startMinute = int.parse(parts[1]);
     final startTotal = startHour * 60 + startMinute;
     final endTotal = startTotal + durationMinutes;
     return endTotal <= _closingMinutes();
+  }
+
+  bool _isSlotInPast(String timeSlot) {
+    // Only check if today is selected
+    if (_selectedDateIndex != 0) return false;
+
+    final now = DateTime.now();
+    final parts = timeSlot.split(':');
+    final slotHour = int.parse(parts[0]);
+    final slotMinute = int.parse(parts[1]);
+
+    // Current time + 30 minute buffer
+    final bufferTime = now.add(const Duration(minutes: 30));
+    final bufferHour = bufferTime.hour;
+    final bufferMinute = bufferTime.minute;
+
+    if (slotHour < bufferHour) return true;
+    if (slotHour == bufferHour && slotMinute < bufferMinute) return true;
+
+    return false;
   }
 
   Future<void> _updatePriceForSelection() async {
@@ -172,6 +192,8 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   }
 
   bool _isTimeSlotAvailable(String timeSlot) {
+    if (_isSlotInPast(timeSlot)) return false;
+    
     if (_availabilityDateKey == _currentBookingDateKey && _availabilityBySlot.containsKey(timeSlot)) {
       return _availabilityBySlot[timeSlot] ?? false;
     }
@@ -233,10 +255,14 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   }
 
   Map<String, bool> _computeAvailabilityForDuration(int durationMinutes, List<CourtModel> courts) {
-    final slots = _timeSlots.where((slot) => _slotFitsDuration(slot, durationMinutes));
+    final slots = _timeSlots.where((slot) => _isSlotFitsDuration(slot, durationMinutes));
     final availability = <String, bool>{};
 
     for (final slot in slots) {
+      if (_isSlotInPast(slot)) {
+        availability[slot] = false;
+        continue;
+      }
       final parts = slot.split(':');
       final startHour = int.parse(parts[0]);
       final startMinute = int.parse(parts[1]);
@@ -272,7 +298,7 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   bool _isDurationSelectable(int durationMinutes) {
     if (_selectedTimeIndex == null) return true;
     final timeSlot = _timeSlots[_selectedTimeIndex!];
-    return _slotFitsDuration(timeSlot, durationMinutes);
+    return _isSlotFitsDuration(timeSlot, durationMinutes);
   }
 
   Future<void> _loadBookingsForDate() async {
@@ -370,7 +396,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   List<String> get _filteredTimeSlots {
     // If duration is selected, use it; otherwise use minimum duration so late slots are hidden
     final durationForFilter = _selectedDurationMinutes ?? _minDuration;
-    final baseSlots = _timeSlots.where((slot) => _slotFitsDuration(slot, durationForFilter));
+    final baseSlots = _timeSlots.where((slot) {
+      return _isSlotFitsDuration(slot, durationForFilter) && !_isSlotInPast(slot);
+    });
 
     // If we have availability for this date, honor it
     if (_availabilityDateKey == _currentBookingDateKey) {
@@ -388,7 +416,9 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
   // Time slots filtered only by duration/closing, ignoring availability toggle
   List<String> get _durationFilteredTimeSlots {
     final durationForFilter = _selectedDurationMinutes ?? _minDuration;
-    return _timeSlots.where((slot) => _slotFitsDuration(slot, durationForFilter)).toList();
+    return _timeSlots.where((slot) {
+      return _isSlotFitsDuration(slot, durationForFilter) && !_isSlotInPast(slot);
+    }).toList();
   }
 
   // Get filtered courts based on toggle
@@ -463,6 +493,18 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
     final selectedDate = _dates[_selectedDateIndex];
     final bookingDate = selectedDate.toIso8601String().split('T')[0]; // Format: YYYY-MM-DD
     final selectedTime = _timeSlots[_selectedTimeIndex!];
+
+    // Final check for past slots
+    if (_isSlotInPast(selectedTime)) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Izabrani termin više nije dostupan.'),
+          backgroundColor: AppColors.hotPink,
+        ),
+      );
+      return;
+    }
+
     final startTime = '$selectedTime:00'; // Convert to HH:mm:ss format
     
     // Calculate end time
@@ -923,20 +965,20 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                 onTap: isUnavailable
                     ? null
                     : () {
+                      setState(() {
+                        _selectedTimeIndex = originalIndex;
+                      });
+                      // If current duration makes this slot invalid, reset selection
+                      final currentDuration = _selectedDurationMinutes ?? _minDuration;
+                      if (!_isSlotFitsDuration(timeSlot, currentDuration)) {
                         setState(() {
-                          _selectedTimeIndex = originalIndex;
+                          _selectedTimeIndex = null;
                         });
-                        // If current duration makes this slot invalid, reset selection
-                        final currentDuration = _selectedDurationMinutes ?? _minDuration;
-                        if (!_slotFitsDuration(timeSlot, currentDuration)) {
-                          setState(() {
-                            _selectedTimeIndex = null;
-                          });
-                          return;
-                        }
-                        _updatePriceForSelection();
-                        _scheduleCourtAvailabilityLoad();
-                      },
+                        return;
+                      }
+                      _updatePriceForSelection();
+                      _scheduleCourtAvailabilityLoad();
+                    },
                 child: Container(
                   decoration: BoxDecoration(
                     color: isSelected
@@ -1034,16 +1076,16 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
           return GestureDetector(
             onTap: isDurationAvailable
                 ? () {
-                    setState(() {
-                      _selectedDurationIndex = index;
-                      // If the previously selected time no longer fits this duration, clear it
-                      if (_selectedTimeIndex != null) {
-                        final timeSlot = _timeSlots[_selectedTimeIndex!];
-                        if (!_slotFitsDuration(timeSlot, _durations[index])) {
-                          _selectedTimeIndex = null;
-                        }
+                  setState(() {
+                    _selectedDurationIndex = index;
+                    // If the previously selected time no longer fits this duration, clear it
+                    if (_selectedTimeIndex != null) {
+                      final timeSlot = _timeSlots[_selectedTimeIndex!];
+                      if (!_isSlotFitsDuration(timeSlot, _durations[index])) {
+                        _selectedTimeIndex = null;
                       }
-                    });
+                    }
+                  });
                     _loadAvailabilityForSelectedDate(durationMinutes: _durations[index]);
                     _updatePriceForSelection();
                     _scheduleCourtAvailabilityLoad();

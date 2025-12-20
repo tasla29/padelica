@@ -39,7 +39,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
     // Page 2: Compete in tournaments
     _OnboardingPageData(
-      title: 'Takmič se na turnirima',
+      title: 'Takmiči se na turnirima',
       description: 'Prijavi se na turnire, prati rezultate i osvoji nagrade!',
       imagePath: 'assets/images/onboarding_3.png',
     ),
@@ -129,7 +129,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             // Bottom CTA (only for capability pages)
             if (!_showIntro)
               Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -137,7 +137,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.hotPink,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      padding: const EdgeInsets.symmetric(vertical: 20),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -254,51 +254,59 @@ class _CapabilityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          // Illustration
-          Expanded(
-            flex: 5,
-            child: Center(
-              child: OverflowBox(
-                maxWidth: screenWidth * 2.0,
-                child: SizedBox(
-                  width: screenWidth * 1.8,
-                  child: Image.asset(data.imagePath, fit: BoxFit.contain),
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+        // Illustration - Moderately sized with subtle overflow
+        Expanded(
+          flex: 5,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: -screenWidth * 0.05, // 5% overflow beyond left edge
+                right: -screenWidth * 0.05, // 5% overflow beyond right edge
+                top: screenWidth * 0.30, // Push down from top
+                bottom: -screenWidth * 0.15, // Extend below
+                child: Image.asset(data.imagePath, fit: BoxFit.cover),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        // Title and Description Container
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            children: [
+              // Title
+              Text(
+                data.title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.montserrat(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  height: 1.2,
                 ),
               ),
-            ),
+              const SizedBox(height: 16),
+              // Description
+              Text(
+                data.description,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.montserrat(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 32),
-          // Title
-          Text(
-            data.title,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.montserrat(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Description
-          Text(
-            data.description,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.montserrat(
-              fontSize: 15,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary,
-              height: 1.5,
-            ),
-          ),
-          const Spacer(flex: 1),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 }

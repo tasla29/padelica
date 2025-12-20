@@ -241,6 +241,14 @@ class BookingRepository {
         throw Exception('Korisnik nije prijavljen');
       }
 
+      // Check if the booking is in the past
+      final now = DateTime.now();
+      final bookingDateTime = DateTime.parse('$bookingDate $startTime');
+      // 30 minute buffer
+      if (bookingDateTime.isBefore(now.add(const Duration(minutes: 30)))) {
+        throw Exception('Termin više nije dostupan');
+      }
+
       // Final availability check before creating booking
       final isAvailable = await checkSlotAvailability(
         courtId: courtId,

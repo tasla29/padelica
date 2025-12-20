@@ -43,12 +43,13 @@ dependencies:
   
   # Google Fonts for Montserrat typography
   google_fonts: ^6.2.1
+  
   intl_phone_number_input: ^0.7.5
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
   flutter_confetti: ^0.5.1
   shared_preferences: ^2.2.2
-  google_sign_in: ^6.2.1
+  google_sign_in: ^7.2.0
   flutter_facebook_auth: ^7.1.2
   
   

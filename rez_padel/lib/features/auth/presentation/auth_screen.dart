@@ -368,8 +368,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                   ),
                                   obscureText: !_isConfirmPasswordVisible,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return 'Obavezno polje';
+                                    }
                                     if (value != _passwordController.text) {
                                       return 'Lozinke se ne poklapaju';
                                     }

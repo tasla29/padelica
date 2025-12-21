@@ -1,0 +1,58 @@
+# Padel Space - Admin Dashboard (Next.js)
+
+## Tech Stack
+- Framework: Next.js 15+ (App Router)
+- Language: TypeScript
+- Styling: Tailwind CSS 4
+- Icons: Lucide React
+- Components: Shadcn UI (MANDATORY for all UI components)
+- State Management: React Query / TanStack Query (for server state)
+- Backend: Supabase (PostgreSQL, Auth, Realtime)
+
+## UI Component Guidelines (Shadcn UI)
+- **MANDATORY**: Always check if a Shadcn component exists before building a custom one.
+- **Installation**: Use `npx shadcn@latest add [component-name]` to add new components.
+- **Customization**: When customizing Shadcn components, maintain the Padel Space brand (rounded corners 8-12px, high contrast).
+- **Forms**: Use Shadcn's `Form` (react-hook-form + zod) for all data entry, including Quick Booking and User Search.
+- **Tables**: Use Shadcn's `Table` or `Data Table` for customer lists and booking history.
+- **Feedback**: Use Shadcn's `Toast` or `Sonner` for success/error notifications.
+- **Overlays**: Use Shadcn's `Dialog` (Modal) or `Sheet` (Sidebar) for the Quick Booking interface.
+
+## Project Context
+The Admin Dashboard is a specialized tool for managers and staff of Padel Space center in Serbia. It allows for real-time court management, quick bookings, and business analytics.
+
+## UI/UX Guidelines
+- **Branding**: Match Padel Space energetic/space theme.
+- **Colors**: 
+  - Primary: Hot Pink (#FF0099)
+  - Secondary: Deep Navy (#1a2332)
+  - Accents: Lime Green (#CCFF00) for availability/success.
+- **Typography**: Montserrat (Google Fonts).
+- **Layout**: High density but legible. Admins need to see a lot of data at once (especially the daily schedule).
+- **Responsiveness**: Primary focus on Desktop (for center reception), but must be usable on tablets.
+
+## Core Features Context
+1. **Daily Schedule**: A grid view showing all courts (columns) and time slots (rows). Use Shadcn's `ScrollArea` and `Card` components for the grid items. Must use Realtime subscriptions to reflect changes from the mobile app immediately.
+2. **Quick Booking**: Use Shadcn's `Dialog` or `Sheet` for creating bookings in < 10 seconds. Should allow selecting existing users or entering guest details.
+3. **Customer Search**: Use Shadcn's `Command` or `Input` with a popover for global search. View their booking history using `DataTable`.
+4. **Revenue Dashboard**: Visual charts showing daily/weekly/monthly revenue based on confirmed bookings.
+5. **Court Management**: Toggle court status (Active, Maintenance, Unavailable) with immediate effect on the mobile app.
+
+## Database Integration (Supabase)
+- The database is shared with the `rez_padel` Flutter app.
+- Refer to `DATABASE_SCHEMA.md` in the root for table structures.
+- Use Supabase Auth for staff login. Only users with role `staff` or `admin` should access this dashboard.
+- Leverage Supabase Realtime for the schedule grid.
+
+## Serbian Market Specifics
+- **Language**: All user-facing text in Serbian Latin.
+- **Currency**: RSD (Serbian Dinar).
+- **Timezone**: Europe/Belgrade (CET/CEST).
+- **Date Formatting**: DD.MM.YYYY.
+
+## Best Practices
+- Use Server Components where possible for initial data fetching.
+- Implement robust error boundaries and loading states (Skeletons).
+- Maintain consistency with the mobile app's business logic (e.g., price calculation).
+- Keep the UI energetic and professional, avoiding "boring" corporate styles.
+

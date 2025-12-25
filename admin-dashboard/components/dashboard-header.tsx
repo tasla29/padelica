@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Search, Bell, User } from "lucide-react"
+import { Search, Bell } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -36,55 +36,54 @@ export function DashboardHeader() {
   })
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-white/5 bg-[#151c28] px-6 text-white">
+    <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-slate-200 bg-white px-6">
       <div className="flex items-center gap-4">
-        <SidebarTrigger className="-ml-1 text-white/70 hover:text-primary hover:bg-white/10" />
+        <SidebarTrigger className="-ml-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100" />
         <div className="hidden md:flex flex-col">
-          <p className="text-sm font-semibold capitalize text-white">{formattedDate}</p>
-          <p className="text-xs text-white/60 font-medium">{formattedTime}</p>
+          <p className="text-xs font-semibold capitalize text-slate-700">{formattedDate}</p>
+          <p className="text-[10px] text-slate-400 font-medium">{formattedTime}</p>
         </div>
       </div>
 
       <div className="flex items-center gap-4">
         <div className="relative hidden lg:block w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-white/40" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           <Input
             type="search"
-            placeholder="Pretraži rezervacije..."
-            className="w-full bg-white/5 border-none pl-9 focus-visible:ring-primary text-white placeholder:text-white/30"
+            placeholder="Pretraži..."
+            className="w-full bg-slate-50 border-slate-200 pl-9 focus-visible:ring-slate-400 text-sm h-9"
           />
         </div>
 
-        <Button variant="ghost" size="icon" className="relative text-white/70 hover:text-primary hover:bg-white/10">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 flex h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_#FF0099]" />
+        <Button variant="ghost" size="icon" className="relative text-slate-500 hover:text-slate-900 hover:bg-slate-100 h-9 w-9">
+          <Bell className="h-4 w-4" />
+          <span className="absolute right-2.5 top-2.5 flex h-1.5 w-1.5 rounded-full bg-primary" />
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full border-2 border-primary/20 p-0 hover:border-primary/50 transition-all">
-              <Avatar className="h-9 w-9">
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full border border-slate-200 p-0 hover:bg-slate-50 transition-all">
+              <Avatar className="h-7 w-7">
                 <AvatarImage src="/avatars/admin.png" alt="Admin" />
-                <AvatarFallback className="bg-primary/10 text-primary font-bold">AD</AvatarFallback>
+                <AvatarFallback className="bg-slate-100 text-slate-600 text-[10px] font-bold">AD</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56 bg-[#1a2332] border-[#2d3a4f] text-white" align="end" forceMount>
+          <DropdownMenuContent className="w-56 bg-white border-slate-200 shadow-lg" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-bold leading-none">Admin PadelSpace</p>
-                <p className="text-xs leading-none text-white/60">admin@padelspace.rs</p>
+                <p className="text-sm font-bold leading-none text-slate-900">Admin PadelSpace</p>
+                <p className="text-xs leading-none text-slate-500">admin@padelspace.rs</p>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-[#2d3a4f]" />
-            <DropdownMenuItem className="focus:bg-primary focus:text-white cursor-pointer transition-colors">Profil</DropdownMenuItem>
-            <DropdownMenuItem className="focus:bg-primary focus:text-white cursor-pointer transition-colors">Podešavanja</DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-[#2d3a4f]" />
-            <DropdownMenuItem className="text-red-400 focus:bg-red-500 focus:text-white cursor-pointer transition-colors">Odjavi se</DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-slate-100" />
+            <DropdownMenuItem className="focus:bg-slate-50 cursor-pointer transition-colors text-sm">Profil</DropdownMenuItem>
+            <DropdownMenuItem className="focus:bg-slate-50 cursor-pointer transition-colors text-sm">Podešavanja</DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-slate-100" />
+            <DropdownMenuItem className="text-rose-600 focus:bg-rose-50 cursor-pointer transition-colors text-sm font-medium">Odjavi se</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </header>
   )
 }
-

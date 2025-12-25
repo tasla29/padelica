@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Image from "next/image"
+import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   CalendarDays,
@@ -28,7 +29,6 @@ const data = {
       title: "Dashboard",
       url: "/",
       icon: LayoutDashboard,
-      isActive: true,
     },
     {
       title: "Rezervacije",
@@ -59,16 +59,18 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname()
+
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="h-24 flex items-center justify-center border-none pt-4">
-        <div className="flex items-center gap-2 px-4 py-6">
+    <Sidebar collapsible="icon" {...props} className="border-r border-slate-800">
+      <SidebarHeader className="h-20 flex items-center justify-center border-none">
+        <div className="flex items-center gap-2 px-4">
           <div className="flex items-center justify-center group-data-[collapsible=icon]:hidden">
             <Image 
               src="/assets/padelspace_logo_nobg.png" 
               alt="PadelSpace Logo" 
-              width={160} 
-              height={60} 
+              width={130} 
+              height={50} 
               priority
               className="object-contain"
             />
@@ -77,40 +79,44 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <Image 
               src="/assets/padelspace_logo_nobg.png" 
               alt="PadelSpace Logo" 
-              width={40} 
-              height={40} 
+              width={32} 
+              height={32} 
               priority
-              className="object-contain min-w-10"
+              className="object-contain min-w-8"
             />
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarMenu className="px-2 pt-4">
-          {data.navMain.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                asChild
-                isActive={item.isActive}
-                tooltip={item.title}
-                className="hover:bg-primary/10 hover:text-primary data-[active=true]:bg-primary data-[active=true]:text-white transition-all duration-200"
-              >
-                <a href={item.url}>
-                  <item.icon />
-                  <span className="font-medium">{item.title}</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+        <SidebarMenu className="px-3 pt-2">
+          {data.navMain.map((item) => {
+            const isActive = pathname === item.url || (item.url !== "/" && pathname?.startsWith(item.url))
+            
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive}
+                  tooltip={item.title}
+                  className="hover:bg-white/5 hover:text-white data-[active=true]:bg-primary data-[active=true]:text-white transition-all duration-150 rounded-lg h-10 px-3"
+                >
+                  <a href={item.url}>
+                    <item.icon className="size-4" />
+                    <span className="font-semibold text-sm">{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
+          })}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
         <div className="p-4 group-data-[collapsible=icon]:hidden">
-          <div className="rounded-xl bg-primary/10 p-4 border border-primary/20">
-            <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Status Sistema</p>
+          <div className="rounded-lg bg-white/5 p-3 border border-white/10">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Status Sistema</p>
             <div className="flex items-center gap-2">
-              <div className="size-2 rounded-full bg-primary animate-pulse" />
-              <p className="text-sm font-medium text-white/80">Sve radi normalno</p>
+              <div className="size-1.5 rounded-full bg-emerald-500" />
+              <p className="text-xs font-medium text-slate-300">Online</p>
             </div>
           </div>
         </div>
@@ -119,4 +125,3 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     </Sidebar>
   )
 }
-
